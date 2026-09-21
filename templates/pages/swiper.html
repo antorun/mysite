@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>全屏横向图片轮播</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            background-color: #000;
+            touch-action: none;
+            position: relative;
+            user-select: none;
+        }
+        
+        /* 轮播容器 */
+        .slider-container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        /* 轮播图片 */
+        .slider {
+            display: flex;
+            height: 100%;
+            transition: transform 0.5s ease;
+        }
+        
+        .slide {
+            min-width: 100vw;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        
+        .slide img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        /* 隐藏式菜单 */
+        .menu-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            transform: translateY(-100%);
+            transition: transform 0.4s ease;
+            z-index: 100;
+        }
+        
+        .menu-container.show {
+            transform: translateY(0);
+        }
+        
+        /* 菜单内容 */
+        .menu-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: white;
+        }
+        
+        .menu-title {
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+        
+        /* 指示器 */
+        .indicators {
+            display: flex;
+            justify-content: center;
+            margin: 10px 0 20px;
+        }
+        
+        .indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: rgba(255, 255, 255, 0.5);
+            margin: 0 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .indicator.active {
+            background-color: #ff5252;
+            transform: scale(1.2);
+        }
+        
+        /* 控制按钮 */
+        .controls {
+            display: flex;
+            gap: 30px;
+        }
+        
+        .control-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1rem;
+            padding: 8px 20px;
+            background-color: rgba(255, 255, 255, 0.15);
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .control-btn:hover {
+            background-color: rgba(255, 255, 255, 0.3);
+        }
+        
+        .toggle-btn {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255, 255, 255, 0.7);
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 6px 15px;
+            border-radius: 15px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            z-index: 50;
+            transition: all 0.3s;
+        }
+        
+        .toggle-btn:hover {
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+        }
+        
+        /* 响应式适配 */
+        @media (max-width: 600px) {
+            .menu-title {
+                font-size: 1rem;
+            }
+            
+            .control-btn {
+                font-size: 0.85rem;
+                padding: 6px 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="slider-container">
+        <div class="slider">
+            <!-- 图片由JS动态生成 -->
+        </div>
+    </div>
+    
+    <div class="menu-container">
+        <div class="menu-content">
+            <div class="menu-title">美丽景观照片集</div>
+            <div class="indicators"></div>
+            <div class="controls">
+                <button class="control-btn prev-btn">上一张</button>
+                <button class="control-btn next-btn">下一张</button>
+            </div>
+        </div>
+    </div>
+    
+    <button class="toggle-btn">显示菜单</button>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // 图片数组 - 使用Pixabay API的占位图片
+            const images = [
+                "https://cdn.pixabay.com/photo/2015/04/23/22/00/tree-736885_1280.jpg",
+                "https://cdn.pixabay.com/photo/2017/01/20/00/30/maldives-1993704_1280.jpg",
+                "https://cdn.pixabay.com/photo/2015/02/24/15/41/dog-647528_1280.jpg",
+                "https://cdn.pixabay.com/photo/2015/07/05/10/18/tree-832079_1280.jpg",
+                "https://cdn.pixabay.com/photo/2016/11/19/14/00/code-1839406_1280.jpg"
+            ];
+            
+            const slider = document.querySelector('.slider');
+            const indicatorsContainer = document.querySelector('.indicators');
+            const prevBtn = document.querySelector('.prev-btn');
+            const nextBtn = document.querySelector('.next-btn');
+            const menuContainer = document.querySelector('.menu-container');
+            const toggleBtn = document.querySelector('.toggle-btn');
+            const menuTitle = document.querySelector('.menu-title');
+            
+            let currentIndex = 0;
+            let autoPlayInterval = null;
+            const slideDuration = 2000; // 默认2秒自动切换
+            
+            // 创建轮播图片
+            images.forEach((imgSrc, index) => {
+                const slide = document.createElement('div');
+                slide.className = 'slide';
+                slide.innerHTML = `<img src="${imgSrc}" alt="风景图 ${index + 1}">`;
+                slider.appendChild(slide);
+                
+                // 创建指示器
+                const indicator = document.createElement('div');
+                indicator.className = 'indicator';
+                if (index === 0) indicator.classList.add('active');
+                indicator.addEventListener('click', () => goToSlide(index));
+                indicatorsContainer.appendChild(indicator);
+            });
+            
+            // 初始化
+            updateMenuTitle();
+            
+            // 自动轮播
+            function startAutoPlay() {
+                autoPlayInterval = setInterval(() => {
+                    goToSlide((currentIndex + 1) % images.length);
+                }, slideDuration);
+            }
+            
+            // 跳转到指定幻灯片
+            function goToSlide(index) {
+                currentIndex = index;
+                slider.style.transform = `translateX(${-index * 100}vw)`;
+                
+                // 更新指示器状态
+                document.querySelectorAll('.indicator').forEach((indicator, i) => {
+                    if (i === index) {
+                        indicator.classList.add('active');
+                    } else {
+                        indicator.classList.remove('active');
+                    }
+                });
+                
+                updateMenuTitle();
+            }
+            
+            // 上一张
+            function prevSlide() {
+                const newIndex = (currentIndex - 1 + images.length) % images.length;
+                goToSlide(newIndex);
+                resetAutoPlay();
+            }
+            
+            // 下一张
+            function nextSlide() {
+                const newIndex = (currentIndex + 1) % images.length;
+                goToSlide(newIndex);
+                resetAutoPlay();
+            }
+            
+            // 重置自动轮播计时器
+            function resetAutoPlay() {
+                clearInterval(autoPlayInterval);
+                startAutoPlay();
+            }
+            
+            // 更新标题
+            function updateMenuTitle() {
+                menuTitle.textContent = `美丽景观（${currentIndex + 1}/${images.length}）`;
+            }
+            
+            // 切换菜单显示状态
+            function toggleMenu() {
+                menuContainer.classList.toggle('show');
+                toggleBtn.textContent = menuContainer.classList.contains('show') ? '隐藏菜单' : '显示菜单';
+            }
+            
+            // 设置事件监听器
+            prevBtn.addEventListener('click', prevSlide);
+            nextBtn.addEventListener('click', nextSlide);
+            toggleBtn.addEventListener('click', toggleMenu);
+            
+            // 触摸事件 - 适配移动端滑动
+            let startX = 0;
+            
+            slider.addEventListener('touchstart', (e) => {
+                startX = e.touches[0].clientX;
+            });
+            
+            slider.addEventListener('touchend', (e) => {
+                const endX = e.changedTouches[0].clientX;
+                const diff = startX - endX;
+                
+                // 滑动距离大于50像素视为有效滑动
+                if (Math.abs(diff) > 50) {
+                    if (diff > 0) {
+                        // 从左向右滑动 - 下一张
+                        nextSlide();
+                    } else {
+                        // 从右向左滑动 - 上一张
+                        prevSlide();
+                    }
+                }
+            });
+            
+            // 点击屏幕显示/隐藏菜单
+            document.addEventListener('click', (e) => {
+                // 如果点击的是菜单按钮或菜单内部内容，不处理
+                if (toggleBtn.contains(e.target) || menuContainer.contains(e.target)) {
+                    return;
+                }
+                
+                if (menuContainer.classList.contains('show')) {
+                    toggleMenu();
+                }
+            });
+            
+            // 防止菜单按钮触发页面点击事件
+            toggleBtn.addEventListener('click', (e) => e.stopPropagation());
+            
+            // 添加键盘支持
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowLeft') {
+                    prevSlide();
+                } else if (e.key === 'ArrowRight') {
+                    nextSlide();
+                } else if (e.key === 'm' || e.key === 'M') {
+                    toggleMenu();
+                }
+            });
+            
+            // 启动自动轮播
+            startAutoPlay();
+        });
+    </script>
+</body>
+</html>

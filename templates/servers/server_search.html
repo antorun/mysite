@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SCUM 服务器搜索</title>
+    <style>
+        :root {
+            --bg: #0d1117;
+            --card-bg: #161b22;
+            --border: #30363d;
+            --text: #c9d1d9;
+            --text-secondary: #8b949e;
+            --accent: #58a6ff;
+            --radius: 8px;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .wrap { max-width: 960px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 20px; }
+        .header h1 { font-size: 1.5rem; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+        .header .subtitle { color: var(--text-secondary); font-size: 0.82rem; }
+
+        .search {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            padding: 12px;
+            border-radius: var(--radius);
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        #search-input {
+            flex: 1;
+            padding: 10px 14px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--bg);
+            color: var(--text);
+            font-family: inherit;
+            font-size: 0.85rem;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+        #search-input:focus { border-color: var(--accent); }
+        #search-input::placeholder { color: var(--text-secondary); }
+        #search-btn {
+            padding: 10px 18px;
+            border-radius: 6px;
+            border: none;
+            background: var(--accent);
+            color: #fff;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.85rem;
+            white-space: nowrap;
+        }
+        #search-btn:hover { opacity: 0.85; }
+
+        .list { display: flex; flex-direction: column; gap: 10px; }
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 14px;
+            cursor: pointer;
+            transition: border-color 0.15s, transform 0.15s;
+        }
+        .card:hover { border-color: var(--accent); transform: translateY(-2px); }
+        .card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 10px; }
+        .card-name { font-weight: 600; font-size: 0.95rem; color: var(--accent); }
+        .card-loc { color: var(--text-secondary); font-size: 0.8rem; margin-top: 2px; }
+        .card-ip {
+            background: rgba(88,166,255,0.08);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-family: monospace;
+            color: var(--accent);
+            font-size: 0.82rem;
+            white-space: nowrap;
+        }
+        .card-body {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 6px;
+        }
+        .card-body .label { font-size: 0.72rem; color: var(--text-secondary); }
+        .card-body .val { font-size: 0.88rem; font-weight: 600; }
+
+        .pager { display: flex; justify-content: center; margin: 14px 0; }
+        .pager button {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--card-bg);
+            color: var(--accent);
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.85rem;
+        }
+        .pager button:hover { background: var(--border); }
+        .footer { text-align: center; color: var(--text-secondary); margin-top: 16px; font-size: 0.78rem; }
+
+        @media (max-width: 720px) {
+            body { padding: 14px 10px; }
+            .header h1 { font-size: 1.2rem; }
+            .search { flex-direction: column; }
+            #search-btn { width: 100%; }
+            .card-body { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <div class="header">
+            <h1>SCUM 服务器搜索</h1>
+            <div class="subtitle">BattleMetrics 数据源 — 查找并加入 SCUM 服务器</div>
+        </div>
+
+        <div class="search" role="search">
+            <input id="search-input" placeholder="输入服务器名关键词…">
+            <button id="search-btn">搜索</button>
+        </div>
+
+        <div id="results" class="list"></div>
+        <div id="pager" class="pager"></div>
+        <div class="footer">© 2025 SCUM Server Search</div>
+    </div>
+
+    <script>
+        var baseUrl = "https://api.battlemetrics.com/servers?fields[server]=rank,name,players,maxPlayers,address,ip,port,country,location,details,status&relations[server]=game,serverGroup&filter[game]=scum";
+        var nextLink = null;
+        var el = function(id) { return document.getElementById(id); };
+        var resultsEl = el('results'), pagerEl = el('pager');
+
+        function buildCard(s) {
+            var a = s.attributes || {};
+            var id = s.id || a.id || '';
+            var status = a.status === 'online' ? '在线' : (a.status === 'offline' ? '离线' : '已移除');
+            var country = (a.country || 'us').toLowerCase();
+            var loc = Array.isArray(a.location) && a.location.length >= 2 ? a.location[1] + ', ' + a.location[0] : (a.address || '未知');
+            var version = a.details && a.details.version ? String(a.details.version).split('.').slice(0,2).join('.') : 'N/A';
+            return '<div class="card" data-id="' + id + '">' +
+                '<div class="card-head">' +
+                    '<div><div class="card-name">' + (a.name || '未知服务器') + '</div>' +
+                    '<div class="card-loc">' + loc + '</div></div>' +
+                    '<div class="card-ip">' + (a.ip || '0.0.0.0') + ':' + (a.port || 0) + '</div>' +
+                '</div>' +
+                '<div class="card-body">' +
+                    '<div><div class="label">状态</div><div class="val">' + status + '</div></div>' +
+                    '<div><div class="label">玩家</div><div class="val">' + (a.players || 0) + '/' + (a.maxPlayers || 0) + '</div></div>' +
+                    '<div><div class="label">排名</div><div class="val">#' + (a.rank || 0).toLocaleString() + '</div></div>' +
+                    '<div><div class="label">版本</div><div class="val">' + version + '</div></div>' +
+                '</div></div>';
+        }
+
+        function renderList(list) {
+            resultsEl.innerHTML = (list || []).map(buildCard).join('') || '<div style="color:var(--text-secondary);text-align:center;padding:24px">未找到服务器</div>';
+            resultsEl.querySelectorAll('.card').forEach(function(c) {
+                c.addEventListener('click', function() {
+                    var id = c.dataset.id;
+                    if (id) location.href = '/server_info/?id=' + id;
+                });
+            });
+        }
+
+        function renderPager(next) {
+            pagerEl.innerHTML = '';
+            nextLink = next || null;
+            if (nextLink) {
+                var btn = document.createElement('button');
+                btn.textContent = '下一页';
+                btn.addEventListener('click', function() { fetchUrl(nextLink); });
+                pagerEl.appendChild(btn);
+            }
+        }
+
+        async function fetchUrl(url) {
+            try {
+                var res = await fetch(url);
+                if (!res.ok) throw new Error(res.status);
+                var data = await res.json();
+                renderList(data.data || []);
+                renderPager(data.links && data.links.next || null);
+                window.scrollTo({ top: resultsEl.offsetTop - 20, behavior: 'smooth' });
+            } catch(e) {
+                console.error(e);
+                resultsEl.innerHTML = '<div style="color:var(--text-secondary);text-align:center;padding:24px">加载失败</div>';
+                renderPager(null);
+            }
+        }
+
+        function fetchServers(term) {
+            fetchUrl(term ? baseUrl + '&filter[search]=' + encodeURIComponent(term) : baseUrl);
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            var input = el('search-input'), btn = el('search-btn');
+            btn.addEventListener('click', function() { fetchServers(input.value.trim()); });
+            input.addEventListener('keypress', function(e) { if (e.key === 'Enter') btn.click(); });
+            fetchServers('');
+        });
+    </script>
+</body>
+</html>

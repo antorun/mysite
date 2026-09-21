@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据库管理</title>
+    <style>
+        :root {
+            --bg: #0d1117;
+            --sidebar-bg: #161b22;
+            --card-bg: #161b22;
+            --border: #30363d;
+            --text: #c9d1d9;
+            --text-secondary: #8b949e;
+            --accent: #58a6ff;
+            --accent-green: #3fb950;
+            --accent-orange: #d2991d;
+            --accent-purple: #a371f7;
+            --accent-red: #f85149;
+            --radius: 8px;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+        }
+        
+        .header {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .header h1 {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+        
+        .main-content {
+            display: flex;
+            gap: 20px;
+            height: calc(100vh - 100px);
+        }
+        
+        .sidebar {
+            width: 200px;
+            background: var(--sidebar-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+        
+        .sidebar-header {
+            padding: 12px 15px;
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border);
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: var(--text);
+        }
+        
+        .table-list {
+            list-style: none;
+        }
+        
+        .table-list li {
+            padding: 10px 15px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border);
+            transition: all 0.15s;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .table-list li:hover {
+            background: rgba(88, 166, 255, 0.1);
+        }
+        
+        .table-list li.active {
+            background: rgba(88, 166, 255, 0.15);
+            color: var(--accent);
+        }
+        
+        .content-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 15px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+        }
+        
+        .tab {
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            border-radius: var(--radius);
+            transition: all 0.15s;
+        }
+        
+        .tab:hover {
+            color: var(--text);
+            background: rgba(88, 166, 255, 0.1);
+        }
+        
+        .tab.active {
+            color: var(--accent);
+            background: rgba(88, 166, 255, 0.15);
+        }
+        
+        .toolbar {
+            padding: 10px 0;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 6px 14px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--card-bg);
+            color: var(--text);
+        }
+        
+        .btn-primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
+        }
+        
+        .btn-primary:hover {
+            background: #4c8ed9;
+        }
+        
+        .btn-success {
+            background: var(--accent-green);
+            border-color: var(--accent-green);
+            color: #fff;
+        }
+        
+        .btn-success:hover {
+            background: #2ea043;
+        }
+        
+        .btn-danger {
+            background: var(--accent-red);
+            border-color: var(--accent-red);
+            color: #fff;
+        }
+        
+        .btn-danger:hover {
+            background: #da3633;
+        }
+        
+        .btn-secondary {
+            background: var(--card-bg);
+            color: var(--text);
+        }
+        
+        .btn-secondary:hover {
+            background: #1f2428;
+        }
+        
+        .data-area {
+            flex: 1;
+            overflow: auto;
+        }
+        
+        .table-container {
+            overflow-x: auto;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--card-bg);
+        }
+        
+        th, td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.85rem;
+        }
+        
+        th {
+            background: var(--sidebar-bg);
+            font-weight: 600;
+            color: var(--text);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        tr:hover {
+            background: rgba(88, 166, 255, 0.05);
+        }
+        
+        .editable-cell {
+            cursor: text;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.15s;
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--text);
+            width: 100%;
+        }
+        
+        .editable-cell:hover {
+            background: rgba(88, 166, 255, 0.1);
+            border-color: var(--border);
+        }
+        
+        .editable-cell:focus {
+            outline: none;
+            background: var(--bg);
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.3);
+        }
+        
+        .actions {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .action-btn {
+            padding: 4px 8px;
+            font-size: 0.75rem;
+        }
+        
+        .pagination {
+            padding: 15px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid var(--border);
+            margin-top: 15px;
+        }
+        
+        .pagination-info {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+        
+        .pagination-controls {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .page-btn {
+            padding: 6px 12px;
+            border: 1px solid var(--border);
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            cursor: pointer;
+            transition: all 0.15s;
+            font-size: 0.85rem;
+            color: var(--text);
+        }
+        
+        .page-btn:hover:not(:disabled) {
+            background: rgba(88, 166, 255, 0.1);
+        }
+        
+        .page-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .page-btn.active {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+        }
+        
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal.show {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow: hidden;
+        }
+        
+        .modal-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-header h2 {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+        
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: var(--text-secondary);
+            line-height: 1;
+        }
+        
+        .close-btn:hover {
+            color: var(--text);
+        }
+        
+        .modal-body {
+            padding: 20px;
+            overflow-y: auto;
+            max-height: calc(90vh - 140px);
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            font-size: 0.85rem;
+            color: var(--text);
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            font-size: 0.85rem;
+            background: var(--bg);
+            color: var(--text);
+            transition: border-color 0.15s;
+        }
+        
+        .form-control:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.1);
+        }
+        
+        textarea.form-control {
+            min-height: 100px;
+            resize: vertical;
+        }
+        
+        .modal-footer {
+            padding: 15px 20px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        
+        /* SQL Editor */
+        .sql-editor {
+            margin-top: 15px;
+        }
+        
+        .sql-input {
+            width: 100%;
+            min-height: 150px;
+            font-family: 'Courier New', monospace;
+            padding: 15px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            font-size: 0.85rem;
+            resize: vertical;
+            background: var(--bg);
+            color: var(--text);
+        }
+        
+        .sql-result {
+            margin-top: 15px;
+            padding: 15px;
+            background: var(--sidebar-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            max-height: 400px;
+            overflow: auto;
+        }
+        
+        .result-message {
+            padding: 10px;
+            border-radius: var(--radius);
+            margin-bottom: 10px;
+            font-size: 0.85rem;
+        }
+        
+        .result-message.success {
+            background: rgba(63, 185, 80, 0.15);
+            color: var(--accent-green);
+            border: 1px solid var(--accent-green);
+        }
+        
+        .result-message.error {
+            background: rgba(248, 81, 73, 0.15);
+            color: var(--accent-red);
+            border: 1px solid var(--accent-red);
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-secondary);
+        }
+        
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-secondary);
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* 自定义滚动条 */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #484f58;
+        }
+        
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: var(--border) transparent;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>数据库管理</h1>
+        </div>
+        
+        <div class="main-content">
+            <div class="sidebar">
+                <div class="sidebar-header">数据表列表</div>
+                <ul class="table-list" id="tableList">
+                    <li class="loading">加载中...</li>
+                </ul>
+            </div>
+            
+            <div class="content-area">
+                <div class="tabs">
+                    <div class="tab active" data-tab="data">数据管理</div>
+                    <div class="tab" data-tab="sql">SQL 执行</div>
+                </div>
+                
+                <div class="tab-content active" id="dataTab">
+                    <div class="toolbar">
+                        <button class="btn btn-primary" onclick="showAddModal()">
+                            <span>+</span> 新增数据
+                        </button>
+                        <button class="btn btn-secondary" onclick="refreshData()">
+                            <span>↻</span> 刷新
+                        </button>
+                        <button class="btn btn-success" onclick="saveAllChanges()" id="saveBtn" style="display: none;">
+                            <span>💾</span> 保存修改
+                        </button>
+                    </div>
+                    
+                    <div class="data-area" id="dataArea">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📊</div>
+                            <p>请从左侧选择一个数据表</p>
+                        </div>
+                    </div>
+                    
+                    <div class="pagination" id="pagination" style="display: none;">
+                        <div class="pagination-info" id="paginationInfo"></div>
+                        <div class="pagination-controls" id="paginationControls"></div>
+                    </div>
+                </div>
+                
+                <div class="tab-content" id="sqlTab">
+                    <div class="data-area">
+                        <div class="sql-editor">
+                            <div class="form-group">
+                                <label>SQL 语句</label>
+                                <textarea class="sql-input" id="sqlInput" placeholder="输入 SQL 语句...&#10;&#10;示例:&#10;SELECT * FROM users LIMIT 10;&#10;INSERT INTO users (username, password) VALUES ('test', 'test123');"></textarea>
+                            </div>
+                            <button class="btn btn-success" onclick="executeSQL()">执行 SQL</button>
+                            
+                            <div class="sql-result" id="sqlResult" style="display: none;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Add/Edit Modal -->
+    <div class="modal" id="dataModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">新增数据</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Dynamic form will be inserted here -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+                <button class="btn btn-primary" id="modalSubmitBtn" onclick="submitData()">保存</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let currentTable = '';
+        let currentPage = 1;
+        let pageSize = 20;
+        let totalRecords = 0;
+        let tableColumns = [];
+        let editingId = null;
+        let changedRows = {}; // 跟踪修改的行
+        
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.tab + 'Tab').classList.add('active');
+            });
+        });
+        
+        // Load tables on page load
+        async function loadTables() {
+            try {
+                const response = await fetch('/api/db/tables');
+                const data = await response.json();
+                
+                if (data.status === 'ok') {
+                    const list = document.getElementById('tableList');
+                    list.innerHTML = '';
+                    
+                    if (data.tables.length === 0) {
+                        list.innerHTML = '<li style="padding: 20px; text-align: center; color: var(--text-secondary);">暂无数据表</li>';
+                        return;
+                    }
+                    
+                    data.tables.forEach(table => {
+                        const li = document.createElement('li');
+                        li.innerHTML = `<span>📋</span> ${table}`;
+                        li.onclick = () => selectTable(table, li);
+                        list.appendChild(li);
+                    });
+                } else {
+                    document.getElementById('tableList').innerHTML = `<li style="padding: 20px; text-align: center; color: var(--accent-red);">${data.message}</li>`;
+                }
+            } catch (error) {
+                document.getElementById('tableList').innerHTML = '<li style="padding: 20px; text-align: center; color: var(--accent-red);">加载失败</li>';
+            }
+        }
+        
+        // Select table
+        async function selectTable(tableName, element) {
+            // Update active state
+            document.querySelectorAll('.table-list li').forEach(li => li.classList.remove('active'));
+            element.classList.add('active');
+            
+            currentTable = tableName;
+            currentPage = 1;
+            changedRows = {}; // 清空修改记录
+            
+            // Load table schema
+            await loadTableSchema(tableName);
+            
+            // Load table data
+            await loadTableData();
+        }
+        
+        // Load table schema
+        async function loadTableSchema(tableName) {
+            try {
+                const response = await fetch(`/api/db/schema?table=${tableName}`);
+                const data = await response.json();
+                
+                if (data.status === 'ok') {
+                    tableColumns = data.columns;
+                }
+            } catch (error) {
+                console.error('Failed to load schema:', error);
+            }
+        }
+        
+        // Load table data
+        async function loadTableData() {
+            if (!currentTable) return;
+            
+            const dataArea = document.getElementById('dataArea');
+            dataArea.innerHTML = '<div class="loading">加载中...</div>';
+            
+            try {
+                const response = await fetch(`/api/db/query?table=${currentTable}&page=${currentPage}&pageSize=${pageSize}`);
+                const data = await response.json();
+                
+                if (data.status === 'ok') {
+                    totalRecords = data.total;
+                    renderTable(data.data, data.columns);
+                    renderPagination();
+                } else {
+                    dataArea.innerHTML = `<div class="empty-state"><p style="color: var(--accent-red);">${data.message}</p></div>`;
+                }
+            } catch (error) {
+                dataArea.innerHTML = '<div class="empty-state"><p style="color: var(--accent-red);">加载失败</p></div>';
+            }
+        }
+        
+        // Render table
+        function renderTable(data, columns) {
+            const dataArea = document.getElementById('dataArea');
+            
+            if (data.length === 0) {
+                dataArea.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><p>暂无数据</p></div>';
+                document.getElementById('pagination').style.display = 'none';
+                return;
+            }
+            
+            let html = '<div class="table-container"><table><thead><tr>';
+            html += '<th style="width: 60px;">#</th>';
+            columns.forEach(col => {
+                html += `<th>${col}</th>`;
+            });
+            html += '<th style="width: 100px;">操作</th>';
+            html += '</tr></thead><tbody>';
+            
+            data.forEach((row, index) => {
+                const rowId = row.id || row[columns[0]];
+                html += `<tr data-row-id="${rowId}">`;
+                html += `<td>${(currentPage - 1) * pageSize + index + 1}</td>`;
+                columns.forEach(col => {
+                    let value = row[col];
+                    if (value === null || value === undefined) {
+                        value = '';
+                    } else if (typeof value === 'object') {
+                        value = JSON.stringify(value);
+                    } else {
+                        value = String(value);
+                    }
+                    
+                    // ID 列不可编辑
+                    if (col.toLowerCase() === 'id') {
+                        html += `<td>${value}</td>`;
+                    } else {
+                        // 使用 textarea 的 value 来避免转义问题
+                        const escapedValue = value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                        // 对于 username 字段添加提示
+                        const title = col.toLowerCase() === 'username' ? 'title="注意：用户名必须唯一，不能与已存在的用户名重复"' : '';
+                        html += `<td><input type="text" class="editable-cell" data-col="${col}" data-row-id="${rowId}" value="${escapedValue}" ${title} onchange="markChanged(${rowId}, '${col}', this.value)"></td>`;
+                    }
+                });
+                html += `<td>
+                    <div class="actions">
+                        <button class="btn btn-danger action-btn" onclick="deleteRow(${rowId})">删除</button>
+                    </div>
+                </td>`;
+                html += '</tr>';
+            });
+            
+            html += '</tbody></table></div>';
+            dataArea.innerHTML = html;
+        }
+        
+        // Mark row as changed
+        function markChanged(rowId, col, value) {
+            if (!changedRows[rowId]) {
+                changedRows[rowId] = {};
+            }
+            changedRows[rowId][col] = value;
+            
+            // 显示保存按钮
+            document.getElementById('saveBtn').style.display = 'inline-flex';
+        }
+        
+        // Save all changes
+        async function saveAllChanges() {
+            if (Object.keys(changedRows).length === 0) {
+                alert('没有需要保存的修改');
+                return;
+            }
+            
+            if (!confirm('确定要保存所有修改吗？')) return;
+            
+            let successCount = 0;
+            let failCount = 0;
+            
+            for (const rowId in changedRows) {
+                try {
+                    const response = await fetch('/api/db/update', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            table: currentTable, 
+                            id: rowId, 
+                            data: changedRows[rowId] 
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    if (data.status === 'ok') {
+                        successCount++;
+                    } else {
+                        failCount++;
+                        console.error(`更新行 ${rowId} 失败:`, data.message);
+                        alert(`更新失败: ${data.message}`);
+                    }
+                } catch (error) {
+                    failCount++;
+                    console.error('更新出错:', error);
+                }
+            }
+            
+            if (failCount === 0) {
+                alert(`保存成功！共更新 ${successCount} 条记录`);
+            } else {
+                alert(`保存完成：成功 ${successCount} 条，失败 ${failCount} 条`);
+            }
+            
+            // 清空修改记录并刷新
+            changedRows = {};
+            document.getElementById('saveBtn').style.display = 'none';
+            loadTableData();
+        }
+        
+        // Render pagination
+        function renderPagination() {
+            const pagination = document.getElementById('pagination');
+            const totalPages = Math.ceil(totalRecords / pageSize);
+            
+            if (totalPages <= 1) {
+                pagination.style.display = 'none';
+                return;
+            }
+            
+            pagination.style.display = 'flex';
+            
+            // Info
+            const start = (currentPage - 1) * pageSize + 1;
+            const end = Math.min(currentPage * pageSize, totalRecords);
+            document.getElementById('paginationInfo').textContent = 
+                `显示 ${start}-${end} 条，共 ${totalRecords} 条记录`;
+            
+            // Controls
+            const controls = document.getElementById('paginationControls');
+            controls.innerHTML = '';
+            
+            // Previous
+            const prevBtn = document.createElement('button');
+            prevBtn.className = 'page-btn';
+            prevBtn.textContent = '上一页';
+            prevBtn.disabled = currentPage === 1;
+            prevBtn.onclick = () => { currentPage--; loadTableData(); };
+            controls.appendChild(prevBtn);
+            
+            // Page numbers
+            const maxPages = 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxPages / 2));
+            let endPage = Math.min(totalPages, startPage + maxPages - 1);
+            
+            if (endPage - startPage < maxPages - 1) {
+                startPage = Math.max(1, endPage - maxPages + 1);
+            }
+            
+            for (let i = startPage; i <= endPage; i++) {
+                const pageBtn = document.createElement('button');
+                pageBtn.className = `page-btn ${i === currentPage ? 'active' : ''}`;
+                pageBtn.textContent = i;
+                pageBtn.onclick = () => { currentPage = i; loadTableData(); };
+                controls.appendChild(pageBtn);
+            }
+            
+            // Next
+            const nextBtn = document.createElement('button');
+            nextBtn.className = 'page-btn';
+            nextBtn.textContent = '下一页';
+            nextBtn.disabled = currentPage === totalPages;
+            nextBtn.onclick = () => { currentPage++; loadTableData(); };
+            controls.appendChild(nextBtn);
+        }
+        
+        // Show add modal
+        function showAddModal() {
+            if (!currentTable) {
+                alert('请先选择一个数据表');
+                return;
+            }
+            
+            editingId = null;
+            document.getElementById('modalTitle').textContent = '新增数据';
+            
+            let formHtml = '';
+            tableColumns.forEach(col => {
+                if (col.name.toLowerCase() === 'id') {
+                    formHtml += `
+                        <div class="form-group">
+                            <label>${col.name} (${col.type})</label>
+                            <input type="text" class="form-control" name="${col.name}" placeholder="留空自动生成">
+                        </div>
+                    `;
+                } else {
+                    const inputType = col.type.includes('int') ? 'number' : 
+                                     col.type.includes('timestamp') || col.type.includes('date') ? 'datetime-local' : 'text';
+                    formHtml += `
+                        <div class="form-group">
+                            <label>${col.name} (${col.type})</label>
+                            <input type="${inputType}" class="form-control" name="${col.name}">
+                        </div>
+                    `;
+                }
+            });
+            
+            document.getElementById('modalBody').innerHTML = formHtml;
+            document.getElementById('dataModal').classList.add('show');
+        }
+        
+        // Delete row
+        async function deleteRow(id) {
+            if (!confirm('确定要删除这条记录吗？')) return;
+            
+            try {
+                const response = await fetch('/api/db/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ table: currentTable, id: id })
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'ok') {
+                    alert('删除成功');
+                    loadTableData();
+                } else {
+                    alert('删除失败: ' + data.message);
+                }
+            } catch (error) {
+                alert('删除失败');
+            }
+        }
+        
+        // Close modal
+        function closeModal() {
+            document.getElementById('dataModal').classList.remove('show');
+            editingId = null;
+        }
+        
+        // Submit data
+        async function submitData() {
+            const form = document.getElementById('modalBody');
+            const inputs = form.querySelectorAll('input, textarea, select');
+            const formData = {};
+            
+            inputs.forEach(input => {
+                if (input.name) {
+                    formData[input.name] = input.value;
+                }
+            });
+            
+            try {
+                const response = await fetch('/api/db/insert', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ table: currentTable, data: formData })
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'ok') {
+                    alert(data.message);
+                    closeModal();
+                    loadTableData();
+                } else {
+                    alert('操作失败: ' + data.message);
+                }
+            } catch (error) {
+                alert('操作失败');
+            }
+        }
+        
+        // Refresh data
+        function refreshData() {
+            if (currentTable) {
+                changedRows = {};
+                document.getElementById('saveBtn').style.display = 'none';
+                loadTableData();
+            }
+        }
+        
+        // Execute SQL
+        async function executeSQL() {
+            const sql = document.getElementById('sqlInput').value.trim();
+            
+            if (!sql) {
+                alert('请输入 SQL 语句');
+                return;
+            }
+            
+            const resultDiv = document.getElementById('sqlResult');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '<div class="loading">执行中...</div>';
+            
+            try {
+                const response = await fetch('/api/db/sql', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sql: sql })
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'ok') {
+                    let html = `<div class="result-message success">${data.message}</div>`;
+                    
+                    if (data.data && data.data.length > 0) {
+                        html += '<div class="table-container"><table><thead><tr>';
+                        data.columns.forEach(col => {
+                            html += `<th>${col}</th>`;
+                        });
+                        html += '</tr></thead><tbody>';
+                        
+                        data.data.forEach(row => {
+                            html += '<tr>';
+                            data.columns.forEach(col => {
+                                let value = row[col];
+                                if (value === null || value === undefined) {
+                                    value = '<span style="color: var(--text-secondary);">NULL</span>';
+                                } else if (typeof value === 'object') {
+                                    value = JSON.stringify(value);
+                                }
+                                html += `<td>${value}</td>`;
+                            });
+                            html += '</tr>';
+                        });
+                        
+                        html += '</tbody></table></div>';
+                    }
+                    
+                    resultDiv.innerHTML = html;
+                } else {
+                    resultDiv.innerHTML = `<div class="result-message error">${data.message}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = '<div class="result-message error">执行失败</div>';
+            }
+        }
+        
+        // Initialize
+        loadTables();
+    </script>
+</body>
+</html>

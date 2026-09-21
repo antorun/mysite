@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="AUTORUN 是一站式智能工具与 AI 应用平台，提供 AI 聊天助手、NVIDIA NIM 推理、媒体播放、服务器查询、节点订阅等多样化在线服务。">
+<title>AUTORUN · 智能工具与 AI 应用平台</title>
+<style>
+:root{
+  --bg:#0a0e14;--bg2:#0d1117;--card:#161b22;--border:#30363d;
+  --text:#e6edf3;--text2:#8b949e;--accent:#58a6ff;--accent2:#a371f7;
+  --green:#3fb950;--orange:#d2991d;--red:#f85149;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;line-height:1.6}
+a{text-decoration:none;color:inherit}
+.container{max-width:1140px;margin:0 auto;padding:0 24px}
+/* 顶部导航 */
+.nav{position:sticky;top:0;z-index:50;background:rgba(10,14,20,.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
+.nav-in{display:flex;align-items:center;justify-content:space-between;height:64px}
+.logo{font-size:1.25rem;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:1px}
+.nav-links{display:flex;gap:28px;align-items:center}
+.nav-links a{color:var(--text2);font-size:.92rem;transition:color .15s}
+.nav-links a:hover{color:var(--text)}
+.btn{padding:8px 18px;border-radius:8px;font-size:.9rem;font-weight:600;cursor:pointer;transition:all .15s;display:inline-block;border:1px solid var(--border)}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-primary:hover{opacity:.9}
+.btn-ghost{color:var(--text)}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
+@media(max-width:760px){.nav-links a:not(.btn){display:none}.nav-links .btn{display:inline-block}}
+/* Hero */
+.hero{padding:96px 0 72px;text-align:center;background:radial-gradient(1200px 500px at 50% -10%,rgba(88,166,255,.12),transparent)}
+.hero .tag{display:inline-block;padding:5px 14px;border:1px solid var(--border);border-radius:999px;color:var(--text2);font-size:.8rem;margin-bottom:24px}
+.hero h1{font-size:3rem;line-height:1.15;font-weight:800;margin-bottom:18px}
+.hero h1 .grad{background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.hero p{color:var(--text2);font-size:1.1rem;max-width:680px;margin:0 auto 32px}
+.hero-cta{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+@media(max-width:600px){.hero{padding:64px 0 48px}.hero h1{font-size:2.1rem}}
+/* 区块 */
+.section{padding:72px 0}
+.section.alt{background:var(--bg2)}
+.section h2{font-size:1.9rem;font-weight:700;text-align:center;margin-bottom:10px}
+.section .sub{text-align:center;color:var(--text2);margin-bottom:44px;font-size:.95rem}
+/* 产品卡片 */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px;transition:transform .18s,border-color .18s}
+.card:hover{transform:translateY(-4px);border-color:var(--accent)}
+.card .ic{width:46px;height:46px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:16px}
+.ic.blue{background:rgba(88,166,255,.14);color:var(--accent)}
+.ic.green{background:rgba(63,185,80,.14);color:var(--green)}
+.ic.purple{background:rgba(163,113,247,.14);color:var(--accent2)}
+.ic.orange{background:rgba(210,153,29,.14);color:var(--orange)}
+.ic.red{background:rgba(248,81,73,.14);color:var(--red)}
+.card h3{font-size:1.1rem;margin-bottom:8px}
+.card p{color:var(--text2);font-size:.88rem}
+.card .more{display:inline-block;margin-top:14px;color:var(--accent);font-size:.85rem;font-weight:600}
+/* 特性 */
+.feat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:20px}
+.feat{display:flex;gap:14px;align-items:flex-start}
+.feat .dot{flex-shrink:0;width:36px;height:36px;border-radius:9px;background:rgba(88,166,255,.12);color:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:700}
+.feat h4{font-size:1rem;margin-bottom:4px}
+.feat p{color:var(--text2);font-size:.86rem}
+/* CTA */
+.cta{text-align:center;padding:80px 0;background:linear-gradient(135deg,rgba(88,166,255,.1),rgba(163,113,247,.1))}
+.cta h2{font-size:2rem;margin-bottom:14px}
+.cta p{color:var(--text2);margin-bottom:28px}
+/* 页脚 */
+.footer{border-top:1px solid var(--border);background:var(--bg2);padding:48px 0 28px}
+.foot-grid{display:grid;grid-template-columns:1.4fr 1fr 1fr 1.2fr;gap:32px;margin-bottom:32px}
+.foot-grid h5{font-size:.95rem;margin-bottom:14px;color:var(--text)}
+.foot-grid a,.foot-grid p{display:block;color:var(--text2);font-size:.85rem;margin-bottom:8px;transition:color .15s}
+.foot-grid a:hover{color:var(--accent)}
+.foot-brand .logo{margin-bottom:10px}
+.foot-brand p{color:var(--text2);font-size:.85rem;max-width:260px}
+.foot-bottom{border-top:1px solid var(--border);padding-top:20px;text-align:center;color:var(--text2);font-size:.8rem;line-height:1.9}
+.foot-bottom a{color:var(--text2);text-decoration:underline}
+@media(max-width:760px){.foot-grid{grid-template-columns:1fr 1fr}.foot-brand{grid-column:1/-1}}
+@media(max-width:460px){.foot-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<!-- 导航 -->
+<header class="nav">
+  <div class="container nav-in">
+    <div class="logo">AUTORUN</div>
+    <nav class="nav-links">
+      <a href="#home">首页</a>
+      <a href="#products">产品功能</a>
+      <a href="/download/">应用下载</a>
+      <a href="/user-agreement/">用户协议</a>
+      <a href="/about/">关于我们</a>
+      <a href="/main/" class="btn btn-primary">进入控制台</a>
+    </nav>
+  </div>
+</header>
+
+<!-- Hero -->
+<section class="hero" id="home">
+  <div class="container">
+    <span class="tag">一站式智能工具与 AI 应用平台</span>
+    <h1>让智能工具<br><span class="grad">触手可及</span></h1>
+    <p>AUTORUN 集成了 AI 聊天助手、NVIDIA 大模型推理、媒体播放、服务器查询、节点订阅等多样化在线服务，为个人与团队提供高效便捷的数字工具箱。</p>
+    <div class="hero-cta">
+      <a href="/main/" class="btn btn-primary">立即体验</a>
+      <a href="#products" class="btn btn-ghost">查看全部功能</a>
+    </div>
+  </div>
+</section>
+
+<!-- 产品展示 -->
+<section class="section" id="products">
+  <div class="container">
+    <h2>产品功能</h2>
+    <p class="sub">覆盖 AI 对话、媒体娱乐、数据查询与网络工具的综合服务平台</p>
+    <div class="grid">
+      <div class="card">
+        <div class="ic purple">🤖</div>
+        <h3>AI 智能聊天助手</h3>
+        <p>基于大语言模型的智能对话工具，支持多轮对话、代码与文档辅助，帮助您高效获取信息与灵感。</p>
+        <a class="more" href="/ai-chat/">前往使用 →</a>
+      </div>
+      <div class="card">
+        <div class="ic green">🖥</div>
+        <h3>NVIDIA NIM 聊天</h3>
+        <p>接入 NVIDIA 推理微服务（NIM），体验 Nemotron、Minimax 等前沿大模型的强大生成能力。</p>
+        <a class="more" href="/nvidia-chat/">前往使用 →</a>
+      </div>
+      <div class="card">
+        <div class="ic red">▶</div>
+        <h3>视频 / M3U8 播放器</h3>
+        <p>支持 HLS（M3U8）流媒体与常规视频播放，提供流畅的在线视听体验。</p>
+        <a class="more" href="/player/">前往使用 →</a>
+      </div>
+      <div class="card">
+        <div class="ic green">📻</div>
+        <h3>网络电台</h3>
+        <p>聚合喜马拉雅 FM 等音频内容，随时收听电台节目与有声内容。</p>
+        <a class="more" href="/radio/">前往使用 →</a>
+      </div>
+      <div class="card">
+        <div class="ic blue">🔍</div>
+        <h3>游戏服务器查询</h3>
+        <p>基于 BattleMetrics 的服务器状态与玩家查询，实时掌握服务器在线情况。</p>
+        <a class="more" href="/server_search">前往使用 →</a>
+      </div>
+      <div class="card">
+        <div class="ic blue">🔗</div>
+        <h3>节点订阅聚合</h3>
+        <p>聚合多源网络订阅节点，方便统一管理，提升使用便捷度。</p>
+        <a class="more" href="/subscribe/">前往使用 →</a>
+      </div>
+      <div class="card">
+        <div class="ic red">🔥</div>
+        <h3>微博热搜榜</h3>
+        <p>实时获取微博热搜与热点话题，掌握当下流行趋势。</p>
+        <a class="more" href="/wbhotword/">前往使用 →</a>
+      </div>
+      <div class="card">
+        <div class="ic orange">🎯</div>
+        <h3>颜色拾取 / 准星配置</h3>
+        <p>提供屏幕取色与个性化准星配置，适用于设计辅助与游戏场景。</p>
+        <a class="more" href="/setting/">前往使用 →</a>
+      </div>
+      <div class="card">
+        <div class="ic purple">💻</div>
+        <h3>设备检测</h3>
+        <p>快速识别当前设备信息与系统环境，便于调试与适配。</p>
+        <a class="more" href="/device/">前往使用 →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 平台特性 -->
+<section class="section alt">
+  <div class="container">
+    <h2>为什么选择 AUTORUN</h2>
+    <p class="sub">稳定、易用、持续迭代的在线工具平台</p>
+    <div class="feat-grid">
+      <div class="feat"><div class="dot">⚡</div><div><h4>即开即用</h4><p>无需安装，浏览器访问即可使用全部功能。</p></div></div>
+      <div class="feat"><div class="dot">🔒</div><div><h4>账号体系</h4><p>完善的登录与权限管理，保障账户与数据安全。</p></div></div>
+      <div class="feat"><div class="dot">🌐</div><div><h4>多端适配</h4><p>响应式设计，电脑与移动端均能获得良好体验。</p></div></div>
+      <div class="feat"><div class="dot">🛠</div><div><h4>持续更新</h4><p>不断扩充功能模块，满足多样化使用场景。</p></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta">
+  <div class="container">
+    <h2>准备好开始了吗？</h2>
+    <p>立即进入控制台，体验全部智能工具与 AI 应用。</p>
+    <a href="/main/" class="btn btn-primary">进入控制台</a>
+  </div>
+</section>
+
+<!-- 页脚 -->
+<footer class="footer">
+  <div class="container">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <div class="logo">AUTORUN</div>
+        <p>一站式智能工具与 AI 应用平台，致力于为用户提供高效、便捷的在线服务。</p>
+      </div>
+      <div>
+        <h5>产品功能</h5>
+        <a href="/ai-chat/">AI 聊天助手</a>
+        <a href="/nvidia-chat/">NVIDIA NIM 聊天</a>
+        <a href="/player/">视频播放器</a>
+        <a href="/radio/">网络电台</a>
+        <a href="/download/">应用下载</a>
+      </div>
+      <div>
+        <h5>关于</h5>
+        <a href="/about/">关于我们</a>
+        <a href="/user-agreement/">用户协议</a>
+        <a href="/about/">联系方式</a>
+      </div>
+      <div>
+        <h5>版权与备案</h5>
+        <!-- 以下信息请替换为您的真实信息 -->
+        <p>版权所有者：AUTORUN 团队</p>
+        <p>网站备案号：京ICP备XXXXXXXX号</p>
+        <p>联系邮箱：support@autorun.example</p>
+        <p>联系地址：北京市某某区某某路 1 号</p>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <p>Copyright © 2026 AUTORUN 团队. 保留所有权利.</p>
+      <p><a href="/user-agreement/">用户协议</a> · <a href="/about/">关于我们</a> · 网站备案号：京ICP备XXXXXXXX号</p>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

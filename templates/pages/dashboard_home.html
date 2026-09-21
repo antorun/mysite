@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>控制台</title>
+    <style>
+        :root {
+            --bg: #0d1117;
+            --card-bg: #161b22;
+            --border: #30363d;
+            --text: #c9d1d9;
+            --text-secondary: #8b949e;
+            --accent: #58a6ff;
+            --accent-green: #3fb950;
+            --accent-orange: #d2991d;
+            --accent-purple: #a371f7;
+            --accent-red: #f85149;
+            --radius: 8px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            min-height: 100vh;
+            padding: 32px;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        .welcome {
+            margin-bottom: 32px;
+        }
+        .welcome h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+        .welcome p {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+        .welcome .time {
+            color: var(--accent);
+            font-size: 0.82rem;
+            margin-top: 4px;
+        }
+
+        /* 统计卡片 */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+        .stat-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+        }
+        .stat-card .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .stat-card .stat-value {
+            font-size: 1.6rem;
+            font-weight: 700;
+        }
+        .stat-card .stat-desc {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+        .stat-card.accent-blue  .stat-value { color: #58a6ff; }
+        .stat-card.accent-green .stat-value { color: #3fb950; }
+        .stat-card.accent-purple .stat-value { color: #a371f7; }
+        .stat-card.accent-orange .stat-value { color: #d2991d; }
+
+        /* 快捷入口 */
+        .section-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+            padding-left: 4px;
+        }
+        .quick-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 12px;
+            margin-bottom: 32px;
+        }
+        .quick-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 18px 16px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .quick-card:hover {
+            border-color: var(--accent);
+            background: rgba(88, 166, 255, 0.04);
+        }
+        .quick-card .qc-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+        .qc-icon.blue   { background: rgba(88,166,255,0.12); color: #58a6ff; }
+        .qc-icon.green  { background: rgba(63,185,80,0.12); color: #3fb950; }
+        .qc-icon.orange { background: rgba(210,153,29,0.12); color: #d2991d; }
+        .qc-icon.purple { background: rgba(163,113,247,0.12); color: #a371f7; }
+        .qc-icon.red    { background: rgba(248,81,73,0.12); color: #f85149; }
+        .quick-card .qc-info {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+        .quick-card .qc-name {
+            font-size: 0.82rem;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .quick-card .qc-desc {
+            font-size: 0.68rem;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        @media (max-width: 600px) {
+            body { padding: 20px 14px; }
+            .welcome h2 { font-size: 1.2rem; }
+            .welcome p { font-size: 0.78rem; }
+            .stats-row { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+            .stat-card { padding: 14px; }
+            .stat-card .stat-value { font-size: 1.3rem; }
+            .quick-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+            .quick-card { padding: 14px 10px; gap: 8px; }
+            .quick-card .qc-icon { width: 32px; height: 32px; font-size: 15px; }
+            .quick-card .qc-name { font-size: 0.75rem; }
+            .quick-card .qc-desc { font-size: 0.62rem; }
+        }
+        @media (max-width: 360px) {
+            body { padding: 14px 10px; }
+            .stats-row { grid-template-columns: 1fr 1fr; gap: 8px; }
+            .quick-grid { grid-template-columns: 1fr 1fr; gap: 6px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="welcome">
+        <h2>欢迎回来，{{ username }}</h2>
+        <p>AUTORUN 后台管理系统</p>
+        <div class="time" id="liveTime"></div>
+    </div>
+
+    <!-- 统计概览 -->
+    <div class="stats-row">
+        <div class="stat-card accent-blue">
+            <div class="stat-label">功能模块</div>
+            <div class="stat-value">20+</div>
+            <div class="stat-desc">可用功能服务</div>
+        </div>
+        <div class="stat-card accent-green">
+            <div class="stat-label">API 接口</div>
+            <div class="stat-value">12+</div>
+            <div class="stat-desc">数据接口服务</div>
+        </div>
+        <div class="stat-card accent-purple">
+            <div class="stat-label">服务器</div>
+            <div class="stat-value">5+</div>
+            <div class="stat-desc">游戏服务器监控</div>
+        </div>
+        <div class="stat-card accent-orange">
+            <div class="stat-label">角色</div>
+            <div class="stat-value">{{ role }}</div>
+            <div class="stat-desc">当前用户权限</div>
+        </div>
+    </div>
+
+    <!-- 快捷入口 -->
+    <div class="section-title">常用功能</div>
+    <div class="quick-grid">
+        <div class="quick-card" onclick="parent.postMessage({type:'navigate', href:'/ai-chat/', name:'AI 聊天'}, '*')">
+            <div class="qc-icon purple">🤖</div>
+            <div class="qc-info">
+                <div class="qc-name">AI 聊天</div>
+                <div class="qc-desc">智能对话助手</div>
+            </div>
+        </div>
+        <div class="quick-card" onclick="parent.postMessage({type:'navigate', href:'/player/', name:'视频播放器'}, '*')">
+            <div class="qc-icon red">▶</div>
+            <div class="qc-info">
+                <div class="qc-name">视频播放器</div>
+                <div class="qc-desc">HLS 视频流</div>
+            </div>
+        </div>
+        <div class="quick-card" onclick="parent.postMessage({type:'navigate', href:'/radio/', name:'网络电台'}, '*')">
+            <div class="qc-icon green">📻</div>
+            <div class="qc-info">
+                <div class="qc-name">网络电台</div>
+                <div class="qc-desc">喜马拉雅FM</div>
+            </div>
+        </div>
+        <div class="quick-card" onclick="parent.postMessage({type:'navigate', href:'/wbhotword/', name:'微博热搜'}, '*')">
+            <div class="qc-icon red">🔥</div>
+            <div class="qc-info">
+                <div class="qc-name">微博热搜</div>
+                <div class="qc-desc">实时热搜榜</div>
+            </div>
+        </div>
+        <div class="quick-card" onclick="parent.postMessage({type:'navigate', href:'/server_search', name:'服务器搜索'}, '*')">
+            <div class="qc-icon blue">🔍</div>
+            <div class="qc-info">
+                <div class="qc-name">服务器搜索</div>
+                <div class="qc-desc">BattleMetrics</div>
+            </div>
+        </div>
+        <div class="quick-card" onclick="parent.postMessage({type:'navigate', href:'/subscribe/', name:'订阅聚合'}, '*')">
+            <div class="qc-icon blue">🔗</div>
+            <div class="qc-info">
+                <div class="qc-name">订阅聚合</div>
+                <div class="qc-desc">节点订阅</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 实时时间
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('liveTime').textContent = 
+                now.toLocaleString('zh-CN', { 
+                    year:'numeric', month:'2-digit', day:'2-digit',
+                    hour:'2-digit', minute:'2-digit', second:'2-digit',
+                    hour12: false 
+                });
+        }
+        updateTime();
+        setInterval(updateTime, 1000);
+    </script>
+</body>
+</html>

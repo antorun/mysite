@@ -1,0 +1,1 @@
+https://autorunner.eu.org/v1/chat/completions mimo-v2.5-pro

@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>准星配置</title>
+    <style>
+        :root {
+            --bg: #0d1117;
+            --card: #161b22;
+            --border: #30363d;
+            --text: #c9d1d9;
+            --muted: #8b949e;
+            --accent: #58a6ff;
+            --radius: 8px;
+            --cr-color: #00ff00;
+            --cr-size: 30;
+            --cr-thick: 2;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg); color: var(--text);
+            min-height: 100vh; padding: 20px;
+        }
+        .wrap { max-width: 500px; margin: 0 auto; }
+        .panel {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 12px; padding: 28px 24px; margin-bottom: 16px;
+        }
+        .panel h2 { text-align: center; font-size: 1.2rem; font-weight: 700; margin-bottom: 24px; letter-spacing: 1px; }
+
+        .fg { margin-bottom: 18px; }
+        .fg label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+        input[type="color"] { width: 100%; height: 42px; padding: 2px 4px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); cursor: pointer; }
+
+        /* 样式选择 */
+        .type-row { display: flex; gap: 8px; flex-wrap: wrap; }
+        .type-opt {
+            flex: 0 0 calc(16.66% - 8px); min-width: 50px; background: var(--bg); border: 2px solid var(--border);
+            border-radius: var(--radius); padding: 10px 4px;
+            cursor: pointer; text-align: center; transition: all 0.2s;
+        }
+        .type-opt:hover { border-color: #484f58; }
+        .type-opt.on { border-color: var(--accent); background: rgba(88,166,255,0.06); }
+        .type-opt .ico {
+            width: 32px; height: 32px; margin: 0 auto 6px;
+            position: relative; color: var(--cr-color);
+        }
+        .type-opt .lbl { font-size: 0.7rem; color: var(--muted); }
+        .type-opt.on .lbl { color: var(--accent); }
+
+        /* 12种图标 */
+        .ico-cross::before,.ico-cross::after { content:""; position:absolute; background:currentColor; }
+        .ico-cross::before { width:100%; height:2px; top:50%; left:0; transform:translateY(-50%); }
+        .ico-cross::after  { width:2px; height:100%; left:50%; top:0; transform:translateX(-50%); }
+
+        .ico-gap::before { content:""; position:absolute; width:35%; height:2px; background:currentColor; top:50%; left:0; transform:translateY(-50%); }
+        .ico-gap::after  { content:""; position:absolute; width:2px; height:35%; background:currentColor; left:50%; top:0; transform:translateX(-50%); }
+        .ico-gap .r { position:absolute; width:35%; height:2px; background:currentColor; top:50%; right:0; transform:translateY(-50%); }
+        .ico-gap .b { position:absolute; width:2px; height:35%; background:currentColor; left:50%; bottom:0; transform:translateX(-50%); }
+
+        .ico-dot::before { content:""; position:absolute; width:5px; height:5px; border-radius:50%; background:currentColor; top:50%; left:50%; transform:translate(-50%,-50%); }
+
+        .ico-circle::before { content:""; position:absolute; width:65%; height:65%; border:2px solid currentColor; border-radius:50%; top:50%; left:50%; transform:translate(-50%,-50%); }
+
+        .ico-cross-circle::before,.ico-cross-circle::after { content:""; position:absolute; background:currentColor; }
+        .ico-cross-circle::before { width:100%; height:2px; top:50%; left:0; transform:translateY(-50%); }
+        .ico-cross-circle::after  { width:2px; height:100%; left:50%; top:0; transform:translateX(-50%); }
+        .ico-cross-circle .ring { position:absolute; width:55%; height:55%; border:2px solid currentColor; border-radius:50%; top:50%; left:50%; transform:translate(-50%,-50%); }
+
+        .ico-chevron::before { content:""; position:absolute; width:6px; height:6px; border-right:2px solid currentColor; border-bottom:2px solid currentColor; top:50%; left:18%; transform:translateY(-50%) rotate(-45deg); }
+        .ico-chevron::after  { content:""; position:absolute; width:6px; height:6px; border-right:2px solid currentColor; border-bottom:2px solid currentColor; top:50%; right:18%; transform:translateY(-50%) rotate(135deg); }
+
+        .ico-xcross::before,.ico-xcross::after { content:""; position:absolute; background:currentColor; width:2px; height:100%; left:50%; top:0; }
+        .ico-xcross::before { transform:rotate(45deg); }
+        .ico-xcross::after  { transform:rotate(-45deg); }
+
+        .ico-square::before { content:""; position:absolute; width:60%; height:60%; border:2px solid currentColor; top:50%; left:50%; transform:translate(-50%,-50%); }
+
+        .ico-triangle::before { content:""; position:absolute; width:0; height:0; border-left:8px solid transparent; border-right:8px solid transparent; border-bottom:12px solid currentColor; top:25%; left:50%; transform:translateX(-50%); }
+
+        .ico-cross-dot::before,.ico-cross-dot::after { content:""; position:absolute; background:currentColor; }
+        .ico-cross-dot::before { width:100%; height:2px; top:50%; left:0; transform:translateY(-50%); }
+        .ico-cross-dot::after  { width:2px; height:100%; left:50%; top:0; transform:translateX(-50%); }
+        .ico-cross-dot .d { position:absolute; width:5px; height:5px; border-radius:50%; background:currentColor; top:50%; left:50%; transform:translate(-50%,-50%); }
+
+        .ico-frame::before { content:""; position:absolute; width:30%; height:2px; background:currentColor; top:18%; left:0; }
+        .ico-frame::after  { content:""; position:absolute; width:30%; height:2px; background:currentColor; top:18%; right:0; }
+        .ico-frame .b-l { position:absolute; width:30%; height:2px; background:currentColor; bottom:18%; left:0; }
+        .ico-frame .b-r { position:absolute; width:30%; height:2px; background:currentColor; bottom:18%; right:0; }
+        .ico-frame .v-l { position:absolute; width:2px; height:30%; background:currentColor; top:18%; left:18%; }
+        .ico-frame .v-r { position:absolute; width:2px; height:30%; background:currentColor; top:18%; right:18%; }
+        .ico-frame .v-bl { position:absolute; width:2px; height:30%; background:currentColor; bottom:18%; left:18%; }
+        .ico-frame .v-br { position:absolute; width:2px; height:30%; background:currentColor; bottom:18%; right:18%; }
+
+        .ico-diamond::before { content:""; position:absolute; width:55%; height:55%; border:2px solid currentColor; top:50%; left:50%; transform:translate(-50%,-50%) rotate(45deg); }
+
+        /* 滑块 */
+        input[type="range"] { width:100%; height:5px; border-radius:3px; background:var(--border); -webkit-appearance:none; appearance:none; cursor:pointer; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance:none; width:18px; height:18px; border-radius:50%; background:var(--accent); border:2px solid var(--card); }
+        .ri { display:flex; justify-content:space-between; font-size:0.75rem; color:var(--muted); margin-top:4px; }
+        .ri strong { color:var(--accent); font-size:0.82rem; }
+
+        /* 预览 */
+        .preview-box {
+            margin: 22px 0; padding: 32px;
+            background: transparent; border-radius: var(--radius);
+            border: 1px solid var(--border);
+            display: flex; justify-content: center; align-items: center;
+            min-height: 150px; overflow: hidden;
+            /* 棋盘格透明背景 */
+            background-image:
+                linear-gradient(45deg, rgba(48,54,61,0.4) 25%, transparent 25%),
+                linear-gradient(-45deg, rgba(48,54,61,0.4) 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, rgba(48,54,61,0.4) 75%),
+                linear-gradient(-45deg, transparent 75%, rgba(48,54,61,0.4) 75%);
+            background-size: 16px 16px;
+            background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+        }
+        #pv {
+            position: relative;
+            width: calc(var(--cr-size) * 1px);
+            height: calc(var(--cr-size) * 1px);
+        }
+        #pv div { position: absolute; }
+
+        /* cross */
+        .pv-cross .h { width:100%; height:calc(var(--cr-thick) * 1px); top:50%; left:0; transform:translateY(-50%); background:var(--cr-color); }
+        .pv-cross .v { width:calc(var(--cr-thick) * 1px); height:100%; left:50%; top:0; transform:translateX(-50%); background:var(--cr-color); }
+
+        /* gap */
+        .pv-gap .t,.pv-gap .b2 { width:calc(var(--cr-thick) * 1px); left:50%; transform:translateX(-50%); background:var(--cr-color); }
+        .pv-gap .t { height:35%; top:0; }
+        .pv-gap .b2 { height:35%; bottom:0; }
+        .pv-gap .l,.pv-gap .r2 { height:calc(var(--cr-thick) * 1px); top:50%; transform:translateY(-50%); background:var(--cr-color); }
+        .pv-gap .l { width:35%; left:0; }
+        .pv-gap .r2 { width:35%; right:0; }
+
+        /* dot */
+        .pv-dot .d { width:calc(var(--cr-thick) * 1px); height:calc(var(--cr-thick) * 1px); border-radius:50%; top:50%; left:50%; transform:translate(-50%,-50%); background:var(--cr-color); }
+
+        /* circle */
+        .pv-circle .ring { width:calc((var(--cr-size) - var(--cr-thick)*2) * 1px); height:calc((var(--cr-size) - var(--cr-thick)*2) * 1px); border:calc(var(--cr-thick) * 1px) solid var(--cr-color); border-radius:50%; top:50%; left:50%; transform:translate(-50%,-50%); }
+
+        /* cross-circle */
+        .pv-cross-circle .h { width:100%; height:calc(var(--cr-thick) * 1px); top:50%; left:0; transform:translateY(-50%); background:var(--cr-color); }
+        .pv-cross-circle .v { width:calc(var(--cr-thick) * 1px); height:100%; left:50%; top:0; transform:translateX(-50%); background:var(--cr-color); }
+        .pv-cross-circle .ring { width:60%; height:60%; border:calc(var(--cr-thick) * 1px) solid var(--cr-color); border-radius:50%; top:50%; left:50%; transform:translate(-50%,-50%); }
+
+        /* chevron */
+        .pv-chevron .lv,.pv-chevron .rv { width:calc(var(--cr-thick)*3 * 1px); height:calc(var(--cr-thick)*3 * 1px); top:50%; }
+        .pv-chevron .lv { border-right:calc(var(--cr-thick) * 1px) solid var(--cr-color); border-bottom:calc(var(--cr-thick) * 1px) solid var(--cr-color); left:12%; transform:translateY(-50%) rotate(-45deg); }
+        .pv-chevron .rv { border-right:calc(var(--cr-thick) * 1px) solid var(--cr-color); border-bottom:calc(var(--cr-thick) * 1px) solid var(--cr-color); right:12%; transform:translateY(-50%) rotate(135deg); }
+
+        /* xcross */
+        .pv-xcross .l1,.pv-xcross .l2 { width:calc(var(--cr-thick) * 1px); height:100%; left:50%; top:0; background:var(--cr-color); }
+        .pv-xcross .l1 { transform:rotate(45deg); }
+        .pv-xcross .l2 { transform:rotate(-45deg); }
+
+        /* square */
+        .pv-square .sq { width:calc((var(--cr-size) - var(--cr-thick)*4) * 1px); height:calc((var(--cr-size) - var(--cr-thick)*4) * 1px); border:calc(var(--cr-thick) * 1px) solid var(--cr-color); top:50%; left:50%; transform:translate(-50%,-50%); }
+
+        /* triangle */
+        .pv-triangle .tri { width:0; height:0; border-left:calc(var(--cr-size)*0.35 * 1px) solid transparent; border-right:calc(var(--cr-size)*0.35 * 1px) solid transparent; border-bottom:calc(var(--cr-size)*0.55 * 1px) solid var(--cr-color); top:10%; left:50%; transform:translateX(-50%); }
+
+        /* cross-dot */
+        .pv-cross-dot .h { width:100%; height:calc(var(--cr-thick) * 1px); top:50%; left:0; transform:translateY(-50%); background:var(--cr-color); }
+        .pv-cross-dot .v { width:calc(var(--cr-thick) * 1px); height:100%; left:50%; top:0; transform:translateX(-50%); background:var(--cr-color); }
+        .pv-cross-dot .d { width:calc(var(--cr-thick)*2.5 * 1px); height:calc(var(--cr-thick)*2.5 * 1px); border-radius:50%; top:50%; left:50%; transform:translate(-50%,-50%); background:var(--cr-color); }
+
+        /* frame */
+        .pv-frame .tl,.pv-frame .tr { width:30%; height:calc(var(--cr-thick) * 1px); top:0; background:var(--cr-color); }
+        .pv-frame .tl { left:0; } .pv-frame .tr { right:0; }
+        .pv-frame .bl,.pv-frame .br { width:30%; height:calc(var(--cr-thick) * 1px); bottom:0; background:var(--cr-color); }
+        .pv-frame .bl { left:0; } .pv-frame .br { right:0; }
+        .pv-frame .vtl,.pv-frame .vtr { width:calc(var(--cr-thick) * 1px); height:30%; top:0; background:var(--cr-color); }
+        .pv-frame .vtl { left:0; } .pv-frame .vtr { right:0; }
+        .pv-frame .vbl,.pv-frame .vbr { width:calc(var(--cr-thick) * 1px); height:30%; bottom:0; background:var(--cr-color); }
+        .pv-frame .vbl { left:0; } .pv-frame .vbr { right:0; }
+
+        /* diamond */
+        .pv-diamond .dm { width:calc((var(--cr-size) - var(--cr-thick)*4) * 1px); height:calc((var(--cr-size) - var(--cr-thick)*4) * 1px); border:calc(var(--cr-thick) * 1px) solid var(--cr-color); top:50%; left:50%; transform:translate(-50%,-50%) rotate(45deg); }
+
+        /* 按钮 */
+        .btns { display:flex; gap:10px; }
+        .btn {
+            flex:1; padding:11px; border:1px solid var(--border);
+            border-radius:var(--radius); font-size:0.88rem; font-weight:600;
+            cursor:pointer; text-align:center; transition:all 0.2s;
+            background:transparent; color:var(--text);
+        }
+        .btn.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+        .btn.primary:hover { background:#4090e0; }
+        .btn:not(.primary):hover { background:rgba(255,255,255,0.04); }
+
+        .back { display:block; text-align:center; margin-top:14px; font-size:0.78rem; color:var(--muted); text-decoration:none; }
+        .back:hover { color:var(--accent); }
+
+        /* ===== 移动端适配 ===== */
+        @media (max-width: 480px) {
+            body { padding: 12px; }
+            .panel { padding: 20px 14px; }
+            .panel h2 { font-size: 1.05rem; margin-bottom: 18px; }
+            .type-row { gap: 6px; }
+            .type-opt { flex: 0 0 calc(25% - 6px); min-width: 60px; padding: 8px 2px; }
+            .type-opt .ico { width: 26px; height: 26px; }
+            .type-opt .lbl { font-size: 0.62rem; }
+            .preview-box { padding: 20px; min-height: 120px; }
+            .btn { font-size: 0.8rem; padding: 10px; }
+            .fg label { font-size: 0.75rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <div class="panel">
+        <h2>准星配置</h2>
+
+        <div class="fg">
+            <label>颜色</label>
+            <input type="color" id="color" value="#00ff00">
+        </div>
+
+        <div class="fg">
+            <label>样式</label>
+            <div class="type-row" id="types">
+                <div class="type-opt on" data-t="cross"><div class="ico ico-cross"></div><div class="lbl">十字</div></div>
+                <div class="type-opt" data-t="gap"><div class="ico ico-gap"><div class="r"></div><div class="b"></div></div><div class="lbl">间隙</div></div>
+                <div class="type-opt" data-t="dot"><div class="ico ico-dot"></div><div class="lbl">圆点</div></div>
+                <div class="type-opt" data-t="circle"><div class="ico ico-circle"></div><div class="lbl">圆圈</div></div>
+                <div class="type-opt" data-t="cross-circle"><div class="ico ico-cross-circle"><div class="ring"></div></div><div class="lbl">十字圈</div></div>
+                <div class="type-opt" data-t="chevron"><div class="ico ico-chevron"></div><div class="lbl">V型</div></div>
+                <div class="type-opt" data-t="xcross"><div class="ico ico-xcross"></div><div class="lbl">X型</div></div>
+                <div class="type-opt" data-t="square"><div class="ico ico-square"></div><div class="lbl">正方形</div></div>
+                <div class="type-opt" data-t="triangle"><div class="ico ico-triangle"></div><div class="lbl">三角</div></div>
+                <div class="type-opt" data-t="cross-dot"><div class="ico ico-cross-dot"><div class="d"></div></div><div class="lbl">十字点</div></div>
+                <div class="type-opt" data-t="frame"><div class="ico ico-frame"><div class="b-l"></div><div class="b-r"></div><div class="v-l"></div><div class="v-r"></div><div class="v-bl"></div><div class="v-br"></div></div><div class="lbl">外框</div></div>
+                <div class="type-opt" data-t="diamond"><div class="ico ico-diamond"></div><div class="lbl">菱形</div></div>
+            </div>
+        </div>
+
+        <div class="fg">
+            <label>尺寸</label>
+            <input type="range" id="size" value="30" min="10" max="100" step="1">
+            <div class="ri"><span>10 px</span><strong id="sv">30 px</strong><span>100 px</span></div>
+        </div>
+
+        <div class="fg">
+            <label>粗细</label>
+            <input type="range" id="thick" value="2" min="1" max="8" step="0.5">
+            <div class="ri"><span>1 px</span><strong id="tv">2 px</strong><span>8 px</span></div>
+        </div>
+
+        <div class="preview-box">
+            <div id="pv" class="pv-cross">
+                <div class="h"></div><div class="v"></div>
+            </div>
+        </div>
+
+        <div class="btns">
+            <button class="btn primary" onclick="openWin()">打开预览窗口</button>
+            <button class="btn" onclick="copyLink()">复制链接</button>
+        </div>
+    </div>
+    <a href="/" class="back">← 返回首页</a>
+</div>
+
+<script>
+    var colorEl = document.getElementById('color');
+    var sizeEl  = document.getElementById('size');
+    var thickEl = document.getElementById('thick');
+    var pv      = document.getElementById('pv');
+    var types   = document.getElementById('types');
+    var sv      = document.getElementById('sv');
+    var tv      = document.getElementById('tv');
+    var curType = 'cross';
+
+    var root = document.documentElement.style;
+
+    function update() {
+        var c = colorEl.value;
+        var s = sizeEl.value;
+        var t = thickEl.value;
+        root.setProperty('--cr-color', c);
+        root.setProperty('--cr-size', s);
+        root.setProperty('--cr-thick', t);
+        sv.textContent = s + ' px';
+        tv.textContent = t + ' px';
+        // 更新类型图标颜色
+        types.querySelectorAll('.ico').forEach(function(ico){ ico.style.color = c; });
+    }
+
+    function setType(t) {
+        curType = t;
+        pv.className = 'pv-' + t;
+        // 重建 pv 内部结构
+        if (t === 'cross')       pv.innerHTML = '<div class="h"></div><div class="v"></div>';
+        else if (t === 'gap')    pv.innerHTML = '<div class="t"></div><div class="b2"></div><div class="l"></div><div class="r2"></div>';
+        else if (t === 'dot')    pv.innerHTML = '<div class="d"></div>';
+        else if (t === 'circle') pv.innerHTML = '<div class="ring"></div>';
+        else if (t === 'cross-circle') pv.innerHTML = '<div class="h"></div><div class="v"></div><div class="ring"></div>';
+        else if (t === 'chevron') pv.innerHTML = '<div class="lv"></div><div class="rv"></div>';
+        else if (t === 'xcross') pv.innerHTML = '<div class="l1"></div><div class="l2"></div>';
+        else if (t === 'square') pv.innerHTML = '<div class="sq"></div>';
+        else if (t === 'triangle') pv.innerHTML = '<div class="tri"></div>';
+        else if (t === 'cross-dot') pv.innerHTML = '<div class="h"></div><div class="v"></div><div class="d"></div>';
+        else if (t === 'frame') pv.innerHTML = '<div class="tl"></div><div class="tr"></div><div class="bl"></div><div class="br"></div><div class="vtl"></div><div class="vtr"></div><div class="vbl"></div><div class="vbr"></div>';
+        else if (t === 'diamond') pv.innerHTML = '<div class="dm"></div>';
+    }
+
+    types.addEventListener('click', function(e) {
+        var opt = e.target.closest('.type-opt');
+        if (!opt) return;
+        types.querySelectorAll('.type-opt').forEach(function(o){ o.classList.remove('on'); });
+        opt.classList.add('on');
+        setType(opt.dataset.t);
+    });
+
+    colorEl.addEventListener('input', update);
+    sizeEl.addEventListener('input', update);
+    thickEl.addEventListener('input', update);
+
+    update();
+
+    // 跨窗口通信通道
+    var channel = new BroadcastChannel('crosshair_sync');
+
+    // 保存配置到 localStorage，并通过 BroadcastChannel 通知 crosshair 页面同步
+    function saveConfig() {
+        var cfg = {
+            color: colorEl.value,
+            size: sizeEl.value,
+            thickness: thickEl.value,
+            type: curType
+        };
+        localStorage.setItem('crosshair_config', JSON.stringify(cfg));
+        // BroadcastChannel 跨窗口通知
+        channel.postMessage(cfg);
+    }
+
+    // 每次修改都自动保存
+    colorEl.addEventListener('input', saveConfig);
+    sizeEl.addEventListener('input', saveConfig);
+    thickEl.addEventListener('input', saveConfig);
+    // 类型选择也保存
+    types.addEventListener('click', function(e) {
+        var opt = e.target.closest('.type-opt');
+        if (!opt) return;
+        setTimeout(saveConfig, 0); // 等 setType 执行完
+    });
+
+    function isMobile() {
+        return /Android|iPhone|iPad|iPod|webOS/i.test(navigator.userAgent) ||
+               (navigator.maxTouchPoints > 1 && window.innerWidth < 768);
+    }
+
+    function buildURL() {
+        return '/setting/crosshair/?color=' + encodeURIComponent(colorEl.value) +
+               '&size=' + sizeEl.value +
+               '&thickness=' + thickEl.value +
+               '&type=' + encodeURIComponent(curType);
+    }
+
+    function openWin() {
+        saveConfig(); // 打开前先保存
+        var url = buildURL();
+        if (isMobile()) {
+            location.href = url;
+        } else {
+            window.open(url, '_blank', 'width=380,height=380');
+        }
+    }
+
+    function copyLink() {
+        var url = location.origin + buildURL();
+        navigator.clipboard.writeText(url).then(function(){
+            var b = document.querySelector('.btn:not(.primary)');
+            b.textContent = '已复制';
+            setTimeout(function(){ b.textContent = '复制链接'; }, 1500);
+        }).catch(function(){ prompt('复制此链接:', url); });
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>人员管理 - AUTORUN</title>
+    <style>
+        :root {
+            --bg: #0d1117;
+            --card-bg: #161b22;
+            --border: #30363d;
+            --text: #c9d1d9;
+            --text-secondary: #8b949e;
+            --accent: #58a6ff;
+            --accent-purple: #a371f7;
+            --danger: #f85149;
+            --success: #3fb950;
+            --warning: #d2991d;
+            --radius: 8px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            min-height: 100vh;
+        }
+        .container { max-width: 800px; margin: 0 auto; padding: 24px 16px 40px; }
+        .top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .top-bar h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #58a6ff, #a371f7);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .back-link {
+            color: var(--accent);
+            font-size: 0.85rem;
+            text-decoration: none;
+        }
+        .back-link:hover { text-decoration: underline; }
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: var(--radius);
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            font-family: inherit;
+        }
+        .btn-primary { background: var(--accent); color: #fff; }
+        .btn-primary:hover { opacity: 0.9; }
+        .btn-danger { background: var(--danger); color: #fff; }
+        .btn-danger:hover { opacity: 0.9; }
+        .btn-sm { padding: 4px 10px; font-size: 0.75rem; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+        .btn-outline:hover { border-color: var(--accent); }
+
+        .card-box {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+        .card-box h2 {
+            font-size: 1rem;
+            margin-bottom: 16px;
+            color: var(--text);
+        }
+        .form-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+        .form-row input, .form-row select {
+            flex: 1;
+            min-width: 100px;
+            padding: 8px 12px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text);
+            font-size: 0.85rem;
+            outline: none;
+            font-family: inherit;
+        }
+        .form-row input:focus, .form-row select:focus {
+            border-color: var(--accent);
+        }
+        .form-row select { cursor: pointer; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+        th, td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        th {
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .role-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        .role-admin { background: rgba(163,113,247,0.15); color: #a371f7; }
+        .role-user { background: rgba(139,148,158,0.12); color: var(--text-secondary); }
+        .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+        .msg {
+            font-size: 0.82rem;
+            margin-top: 8px;
+            min-height: 20px;
+        }
+        .msg-error { color: var(--danger); }
+        .msg-success { color: var(--success); }
+
+        /* 弹窗 */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            width: 90%;
+            max-width: 400px;
+        }
+        .modal h3 { margin-bottom: 16px; font-size: 1.05rem; }
+        .modal .form-row { margin-bottom: 10px; }
+        .modal .btn-row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+
+        /* ===== 移动端适配 ===== */
+        @media (max-width: 600px) {
+            .container { padding: 16px 10px 32px; }
+            .top-bar h1 { font-size: 1.2rem; }
+            .card-box { padding: 14px 12px; }
+            .card-box h2 { font-size: 0.9rem; margin-bottom: 12px; }
+            .form-row { flex-direction: column; gap: 8px; }
+            .form-row input, .form-row select { width: 100%; min-width: auto; }
+            .btn { width: 100%; text-align: center; }
+            th, td { padding: 8px 6px; font-size: 0.75rem; }
+            .actions { flex-direction: column; }
+            .actions .btn { width: 100%; }
+            .modal { padding: 18px 14px; max-width: 95%; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="top-bar">
+        <div>
+            <h1>人员管理</h1>
+            <a class="back-link" href="/">← 返回导航</a>
+        </div>
+    </div>
+
+    <!-- 新增用户 -->
+    <div class="card-box">
+        <h2>新增用户</h2>
+        <div class="form-row">
+            <input type="text" id="newUsername" placeholder="用户名" autocomplete="off">
+            <input type="password" id="newPassword" placeholder="密码 (至少4位)" autocomplete="new-password">
+            <select id="newRole">
+                <option value="user">普通用户</option>
+                <option value="admin">管理员</option>
+            </select>
+            <button class="btn btn-primary" onclick="addUser()">添加</button>
+        </div>
+        <div class="msg" id="addMsg"></div>
+    </div>
+
+    <!-- 用户列表 -->
+    <div class="card-box">
+        <h2>用户列表</h2>
+        <div style="overflow-x: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>用户名</th>
+                        <th>角色</th>
+                        <th>创建时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="userTableBody">
+                    <tr><td colspan="4" style="text-align:center;color:var(--text-secondary);">加载中...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="msg" id="listMsg"></div>
+    </div>
+</div>
+
+<!-- 编辑弹窗 -->
+<div class="modal-overlay" id="editModal">
+    <div class="modal">
+        <h3>编辑用户: <span id="editUsername"></span></h3>
+        <div class="form-row">
+            <input type="password" id="editPassword" placeholder="新密码 (留空不修改)" autocomplete="new-password">
+        </div>
+        <div class="form-row">
+            <select id="editRole">
+                <option value="user">普通用户</option>
+                <option value="admin">管理员</option>
+            </select>
+        </div>
+        <div class="msg" id="editMsg"></div>
+        <div class="btn-row">
+            <button class="btn btn-outline btn-sm" onclick="closeEditModal()">取消</button>
+            <button class="btn btn-primary btn-sm" id="editSaveBtn" onclick="saveEdit()">保存</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentEditId = null;
+
+    function loadUsers() {
+        fetch('/users-list-api')
+            .then(r => r.json())
+            .then(data => {
+                if (data.status !== 'ok') {
+                    document.getElementById('listMsg').textContent = data.message || '加载失败';
+                    document.getElementById('listMsg').className = 'msg msg-error';
+                    return;
+                }
+                const tbody = document.getElementById('userTableBody');
+                if (!data.users || data.users.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-secondary);">暂无用户</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = data.users.map(u => {
+                    const roleTag = u.role === 'admin'
+                        ? '<span class="role-tag role-admin">管理员</span>'
+                        : '<span class="role-tag role-user">普通用户</span>';
+                    const time = u.created_at ? u.created_at.replace('T', ' ').substring(0, 19) : '-';
+                    return `<tr>
+                        <td>${esc(u.username)}</td>
+                        <td>${roleTag}</td>
+                        <td style="font-size:0.78rem;color:var(--text-secondary);">${time}</td>
+                        <td>
+                            <div class="actions">
+                                <button class="btn btn-outline btn-sm" onclick="openEdit('${u.id}','${esc(u.username)}','${u.role}')">编辑</button>
+                                <button class="btn btn-danger btn-sm" onclick="deleteUser('${u.id}','${esc(u.username)}')">删除</button>
+                            </div>
+                        </td>
+                    </tr>`;
+                }).join('');
+            })
+            .catch(() => {
+                document.getElementById('listMsg').textContent = '网络错误';
+                document.getElementById('listMsg').className = 'msg msg-error';
+            });
+    }
+
+    function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+    function addUser() {
+        const username = document.getElementById('newUsername').value.trim();
+        const password = document.getElementById('newPassword').value;
+        const role = document.getElementById('newRole').value;
+        const msg = document.getElementById('addMsg');
+
+        if (!username || !password) { msg.textContent = '用户名和密码不能为空'; msg.className = 'msg msg-error'; return; }
+        if (password.length < 4) { msg.textContent = '密码至少4位'; msg.className = 'msg msg-error'; return; }
+
+        fetch('/users-add-api', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password, role })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'ok') {
+                msg.textContent = data.message;
+                msg.className = 'msg msg-success';
+                document.getElementById('newUsername').value = '';
+                document.getElementById('newPassword').value = '';
+                loadUsers();
+            } else {
+                msg.textContent = data.message || '添加失败';
+                msg.className = 'msg msg-error';
+            }
+        })
+        .catch(() => { msg.textContent = '网络错误'; msg.className = 'msg msg-error'; });
+    }
+
+    function openEdit(id, username, role) {
+        currentEditId = id;
+        document.getElementById('editUsername').textContent = username;
+        document.getElementById('editRole').value = role;
+        document.getElementById('editPassword').value = '';
+        document.getElementById('editMsg').textContent = '';
+        document.getElementById('editMsg').className = 'msg';
+        document.getElementById('editModal').classList.add('active');
+    }
+
+    function closeEditModal() {
+        document.getElementById('editModal').classList.remove('active');
+        currentEditId = null;
+    }
+
+    function saveEdit() {
+        const password = document.getElementById('editPassword').value;
+        const role = document.getElementById('editRole').value;
+        const msg = document.getElementById('editMsg');
+        const btn = document.getElementById('editSaveBtn');
+
+        if (!password && !role) { msg.textContent = '没有修改内容'; msg.className = 'msg msg-error'; return; }
+        if (password && password.length < 4) { msg.textContent = '新密码至少4位'; msg.className = 'msg msg-error'; return; }
+
+        btn.disabled = true;
+        fetch('/users-edit-api', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: currentEditId, password, role })
+        })
+        .then(r => r.json())
+        .then(data => {
+            btn.disabled = false;
+            if (data.status === 'ok') {
+                msg.textContent = data.message;
+                msg.className = 'msg msg-success';
+                setTimeout(() => { closeEditModal(); loadUsers(); }, 800);
+            } else {
+                msg.textContent = data.message || '修改失败';
+                msg.className = 'msg msg-error';
+            }
+        })
+        .catch(() => { btn.disabled = false; msg.textContent = '网络错误'; msg.className = 'msg msg-error'; });
+    }
+
+    function deleteUser(id, username) {
+        if (!confirm(`确定删除用户 "${username}" 吗？此操作不可撤销。`)) return;
+        fetch('/users-delete-api', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'ok') {
+                loadUsers();
+            } else {
+                alert(data.message || '删除失败');
+            }
+        })
+        .catch(() => alert('网络错误'));
+    }
+
+    // 初始加载
+    loadUsers();
+</script>
+</body>
+</html>

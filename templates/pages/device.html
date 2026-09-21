@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>设备检测</title>
+    <style>
+        :root {
+            --bg: #0d1117;
+            --card-bg: #161b22;
+            --border: #30363d;
+            --text: #c9d1d9;
+            --text-secondary: #8b949e;
+            --accent: #58a6ff;
+            --accent-green: #3fb950;
+            --accent-orange: #d2991d;
+            --accent-purple: #a371f7;
+            --radius: 8px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 1100px; margin: 0 auto; }
+        .header {
+            text-align: center;
+            padding: 24px 0;
+            margin-bottom: 24px;
+        }
+        .header h1 {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 6px;
+        }
+        .header .subtitle {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .toolbar {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            padding: 10px 22px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-family: inherit;
+            cursor: pointer;
+            background: var(--card-bg);
+            color: var(--text);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.15s;
+        }
+        .btn:hover { border-color: var(--accent); color: var(--accent); }
+        .btn.accent { background: var(--accent); border-color: var(--accent); color: #fff; }
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+            transition: border-color 0.15s;
+        }
+        .card:hover { border-color: var(--accent); }
+        .card-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--accent);
+            margin-bottom: 14px;
+        }
+        .property {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.84rem;
+        }
+        .property:last-child { border-bottom: none; }
+        .property-name { color: var(--text-secondary); }
+        .property-value { font-weight: 600; color: var(--accent); font-size: 0.9rem; word-break: break-all; text-align: right; max-width: 60%; }
+
+        .mockup {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px 20px;
+            max-width: 500px;
+            margin: 24px auto;
+            position: relative;
+            overflow: hidden;
+        }
+        .mockup-screen {
+            height: 160px;
+            background: var(--bg);
+            border-radius: 6px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            border: 1px solid var(--border);
+        }
+        .mockup-badge {
+            position: absolute;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-family: inherit;
+        }
+        .mockup-badge.bottom { bottom: 8px; left: 50%; transform: translateX(-50%); }
+        .mockup-badge.right { top: 50%; right: 8px; transform: translateY(-50%); }
+        .mockup-badge.top { top: 8px; left: 50%; transform: translateX(-50%); color: var(--accent-green); }
+
+        .info-section {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+            margin-top: 24px;
+        }
+        .info-section h2 {
+            font-size: 1.1rem;
+            color: var(--text);
+            margin-bottom: 16px;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 16px;
+        }
+        .info-card {
+            padding: 16px;
+            background: var(--bg);
+            border-radius: 6px;
+            border: 1px solid var(--border);
+        }
+        .info-card h3 { font-size: 0.9rem; color: var(--accent); margin-bottom: 8px; }
+        .info-card p { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.6; }
+        .info-card code {
+            background: var(--card-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.78rem;
+            color: var(--accent-orange);
+        }
+        .note {
+            background: rgba(210,153,29,0.08);
+            border-left: 3px solid var(--accent-orange);
+            padding: 14px 16px;
+            border-radius: 0 6px 6px 0;
+            margin-bottom: 20px;
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+        }
+        .note strong { color: var(--accent-orange); }
+
+        @media (max-width: 768px) {
+            .cards { grid-template-columns: 1fr; }
+            .header h1 { font-size: 1.3rem; }
+            .toolbar { flex-direction: column; align-items: center; }
+            .btn { width: 100%; max-width: 280px; justify-content: center; }
+        }
+        @media (max-width: 480px) {
+            body { padding: 12px 8px; }
+            .card { padding: 14px; }
+            .property { font-size: 0.78rem; }
+            .info-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>设备屏幕尺寸检测</h1>
+            <p class="subtitle">实时检测并显示设备屏幕尺寸、可用区域、像素比例等信息</p>
+        </div>
+
+        <div class="toolbar">
+            <button class="btn accent" id="refreshBtn">🔄 刷新数据</button>
+        </div>
+
+        <div class="cards">
+            <div class="card">
+                <div class="card-title">📱 屏幕尺寸</div>
+                <div class="property">
+                    <span class="property-name">设备屏幕宽高</span>
+                    <span class="property-value" id="screenSize">--</span>
+                </div>
+                <div class="property">
+                    <span class="property-name">设备像素比</span>
+                    <span class="property-value" id="devicePixelRatio">--</span>
+                </div>
+                <div class="property">
+                    <span class="property-name">色彩深度</span>
+                    <span class="property-value" id="colorDepth">--</span>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">🖥 视口尺寸</div>
+                <div class="property">
+                    <span class="property-name">可视区域宽高</span>
+                    <span class="property-value" id="viewportSize">--</span>
+                </div>
+                <div class="property">
+                    <span class="property-name">文档宽高</span>
+                    <span class="property-value" id="documentSize">--</span>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">ℹ️ 设备信息</div>
+                <div class="property">
+                    <span class="property-name">用户代理</span>
+                    <span class="property-value" id="userAgent" style="font-size:0.72rem;">--</span>
+                </div>
+                <div class="property">
+                    <span class="property-name">首选语言</span>
+                    <span class="property-value" id="language">--</span>
+                </div>
+                <div class="property">
+                    <span class="property-name">在线状态</span>
+                    <span class="property-value" id="onlineStatus">--</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="mockup">
+            <div class="mockup-screen" id="screenDemo">
+                <div class="mockup-badge right" id="widthIndicator">宽度: --px</div>
+                <div class="mockup-badge top" id="heightIndicator">高度: --px</div>
+                <div class="mockup-badge bottom" id="screenIndicator">可视区域: -- × --</div>
+            </div>
+        </div>
+
+        <div class="info-section">
+            <h2>技术说明</h2>
+            <div class="note">
+                <strong>提示：</strong>在移动设备上，屏幕尺寸和视口尺寸可能不同。设备像素比表示物理像素与 CSS 像素的比值。
+            </div>
+            <div class="info-grid">
+                <div class="info-card">
+                    <h3>window.screen</h3>
+                    <p><code>window.screen.width</code> 和 <code>height</code> 返回设备的物理屏幕分辨率。</p>
+                </div>
+                <div class="info-card">
+                    <h3>window.innerWidth</h3>
+                    <p>返回浏览器窗口的视口尺寸（包括滚动条），会随窗口大小调整而改变。</p>
+                </div>
+                <div class="info-card">
+                    <h3>document.clientWidth</h3>
+                    <p><code>clientWidth</code> 返回不包括滚动条的视口宽度，在响应式设计中非常有用。</p>
+                </div>
+                <div class="info-card">
+                    <h3>devicePixelRatio</h3>
+                    <p>物理像素与 CSS 像素的比率。Retina 屏通常为 2 或 3。</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function refreshData() {
+            document.getElementById('screenSize').textContent = window.screen.width + ' × ' + window.screen.height + ' 像素';
+            document.getElementById('devicePixelRatio').textContent = window.devicePixelRatio + (window.devicePixelRatio > 1 ? ' (高清)' : '');
+            document.getElementById('colorDepth').textContent = window.screen.colorDepth + ' 位';
+            document.getElementById('viewportSize').textContent = window.innerWidth + ' × ' + window.innerHeight + ' 像素';
+            document.getElementById('documentSize').textContent = document.documentElement.clientWidth + ' × ' + document.documentElement.clientHeight + ' 像素';
+            var ua = navigator.userAgent;
+            document.getElementById('userAgent').textContent = ua.length > 40 ? ua.substring(0, 37) + '…' : ua;
+            document.getElementById('language').textContent = navigator.language || '';
+            document.getElementById('onlineStatus').textContent = navigator.onLine ? '在线' : '离线';
+            document.getElementById('widthIndicator').textContent = '宽度: ' + window.innerWidth + 'px';
+            document.getElementById('heightIndicator').textContent = '高度: ' + window.innerHeight + 'px';
+            document.getElementById('screenIndicator').textContent = '可视区域: ' + window.innerWidth + ' × ' + window.innerHeight + 'px';
+            document.getElementById('screenDemo').style.height = Math.min(window.innerHeight - 100, 300) + 'px';
+        }
+        document.getElementById('refreshBtn').addEventListener('click', refreshData);
+        window.addEventListener('resize', refreshData);
+        window.addEventListener('online', refreshData);
+        window.addEventListener('offline', refreshData);
+        window.addEventListener('DOMContentLoaded', refreshData);
+    </script>
+</body>
+</html>

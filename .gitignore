@@ -1,0 +1,24 @@
+.vercel
+*.log
+*.pyc
+*.apk
+__pycache__
+db.sqlite3
+media
+node_modules/
+nohup.out
+.DS_Store
+.terminal-logs/
+
+# Environments 
+.env 
+.venv 
+env/ 
+venv/ 
+ENV/ 
+env.bak/ 
+venv.bak/ 
+
+# 守护脚本运行时文件
+.mysite.pid
+w

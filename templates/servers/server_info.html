@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SCUM 服务器监控</title>
+    <link rel="stylesheet" href="/static/css/server_info.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>SCUM 服务器监控</h1>
+            <p>实时监控服务</p>
+        </div>
+        <div class="card server-info">
+            <div class="server-header">
+                <h2 id="serverName">正在加载服务器数据…</h2>
+                <div class="status-indicator status-active">
+                    <span class="indicator active"></span>
+                    <span id="serverStatus">在线</span>
+                </div>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-box highlighted">
+                    <div class="stat-label">👥 在线</div>
+                    <div class="stat-value" id="playerCount">-/-</div>
+                </div>
+                <div class="stat-box highlighted">
+                    <div class="stat-label">🕐 服务器时间</div>
+                    <div class="stat-value" id="serverTime">-</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">🎮 游戏版本</div>
+                    <div class="stat-value" id="gameVersion">-</div>
+                </div>
+            </div>
+            <div class="stats-details">
+                <div class="detail-box">
+                    <div class="detail-label">🌐 服务器IP</div>
+                    <div class="detail-value" id="serverIP">-</div>
+                </div>
+                <div class="detail-box">
+                    <div class="detail-label">🏆 服务器排名</div>
+                    <div class="detail-value"><span id="serverRank">#-</span></div>
+                </div>
+            </div>
+        </div>
+        <div class="card control-panel">
+            <div class="refresh-controls">
+                <button class="refresh-btn" onclick="fetchServerInfo()">🔄 立即刷新</button>
+                <select id="refreshInterval" onchange="updateRefreshInterval()">
+                    <option value="5000">5秒刷新</option>
+                    <option value="10000">10秒刷新</option>
+                    <option value="30000">30秒刷新</option>
+                    <option value="60000" selected>60秒刷新</option>
+                </select>
+                <span class="next-refresh">下次刷新: <span id="nextRefreshTime" class="time-highlight">60</span> 秒后</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        var refreshTimer, countdownTimer, nextRefreshSeconds = 60;
+        var serverId = "{{ server_id }}";
+
+        function fetchServerInfo() {
+            fetch('https://autorunner.eu.org/servernum/?id=' + serverId)
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    document.getElementById('serverName').textContent = data.name;
+                    document.getElementById('serverIP').textContent = data.ip + ':' + data.port;
+                    document.getElementById('playerCount').textContent = data.players + '/' + data.maxPlayers;
+                    document.getElementById('serverTime').textContent = data.time;
+                    document.getElementById('gameVersion').textContent = data.version;
+                    document.getElementById('serverRank').textContent = '#' + data.rank;
+                    document.getElementById('serverStatus').textContent = data.status;
+                    var indicator = document.querySelector('.indicator');
+                    var statusEl = document.querySelector('.status-indicator');
+                    if (data.status === '离线' || data.status === 'down') {
+                        indicator.className = 'indicator inactive';
+                        statusEl.className = 'status-indicator status-inactive';
+                    } else {
+                        indicator.className = 'indicator active';
+                        statusEl.className = 'status-indicator status-active';
+                    }
+                })
+                .catch(function() {
+                    document.getElementById('serverStatus').textContent = '连接失败';
+                    document.querySelector('.indicator').className = 'indicator inactive';
+                    document.querySelector('.status-indicator').className = 'status-indicator status-inactive';
+                });
+        }
+
+        function updateCountdown() {
+            nextRefreshSeconds--;
+            document.getElementById('nextRefreshTime').textContent = nextRefreshSeconds < 0 ? 0 : nextRefreshSeconds;
+            if (nextRefreshSeconds < 0) {
+                nextRefreshSeconds = parseInt(document.getElementById('refreshInterval').value) / 1000;
+            }
+        }
+
+        function updateRefreshInterval() {
+            clearInterval(refreshTimer);
+            clearInterval(countdownTimer);
+            var interval = parseInt(document.getElementById('refreshInterval').value);
+            nextRefreshSeconds = interval / 1000;
+            document.getElementById('nextRefreshTime').textContent = nextRefreshSeconds;
+            refreshTimer = setInterval(fetchServerInfo, interval);
+            countdownTimer = setInterval(updateCountdown, 1000);
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            fetchServerInfo();
+            updateRefreshInterval();
+        });
+    </script>
+</body>
+</html>

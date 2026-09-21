@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>页面加载错误</title>
+<style>
+    :root {
+        --primary-color: #3b7aca;
+        --primary-hover: #4389e6;
+        --primary-active: #346bb3;
+        --text-color: #666;
+        --light-grey: #f0f0f0;
+        --dark-grey: #888;
+    }
+    
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+    }
+    
+    html, body {
+        width: 100%;
+        height: 100%;
+        font-family: system-ui, -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        font-size: 16px;
+        color: var(--text-color);
+        background-color: #fff;
+    }
+    
+    .error-wrap {
+        display: flex;
+        min-height: 100vh;
+        padding: 20px;
+        align-items: center;
+        justify-content: center;
+        background-color: var(--light-grey);
+    }
+    
+    .error-content {
+        text-align: center;
+        max-width: 500px;
+        width: 100%;
+        padding: 40px 30px;
+        border-radius: 16px;
+        background-color: white;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+    }
+    
+    .error-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 120px;
+        height: 120px;
+        margin-bottom: 20px;
+        position: relative;
+    }
+    
+    .error-icon:before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><path fill="none" stroke="%23ff6d6d" stroke-width="3" d="M6 6h36v36H6zM24 16v12m0 4v0" stroke-linecap="round"/><circle cx="24" cy="12" r="1.5" fill="%23ff6d6d"/></svg>') center no-repeat;
+        background-size: contain;
+        animation: pulse 1.5s infinite;
+        opacity: 0.7;
+    }
+    
+    .error-title {
+        font-size: 1.8rem;
+        font-weight: 600;
+        margin-bottom: 15px;
+        color: #f55;
+    }
+    
+    .error-message {
+        font-size: 1.1rem;
+        line-height: 1.6;
+        margin-bottom: 30px;
+        color: var(--dark-grey);
+        max-width: 350px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    
+    .error-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin-top: 30px;
+    }
+    
+    .error-button {
+        display: block;
+        padding: 14px 20px;
+        font-size: 1.1rem;
+        font-weight: 500;
+        border-radius: 50px;
+        text-align: center;
+        text-decoration: none;
+        background-color: var(--primary-color);
+        color: white;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 10px rgba(59, 122, 202, 0.2);
+    }
+    
+    .error-button:hover {
+        background-color: var(--primary-hover);
+        box-shadow: 0 6px 14px rgba(59, 122, 202, 0.3);
+    }
+    
+    .error-button:active {
+        background-color: var(--primary-active);
+        transform: translateY(2px);
+    }
+    
+    .error-link {
+        display: inline-block;
+        padding: 10px;
+        color: var(--primary-color);
+        text-decoration: none;
+        font-size: 0.95rem;
+        border-radius: 8px;
+        transition: all 0.3s;
+    }
+    
+    .error-link:hover {
+        color: var(--primary-hover);
+        background-color: rgba(59, 122, 202, 0.05);
+    }
+    
+    @keyframes pulse {
+        0% { transform: scale(0.95); opacity: 0.7; }
+        50% { transform: scale(1.05); opacity: 1; }
+        100% { transform: scale(0.95); opacity: 0.7; }
+    }
+    
+    @media (max-width: 480px) {
+        .error-content {
+            padding: 30px 20px;
+            border-radius: 12px;
+        }
+        
+        .error-icon {
+            width: 100px;
+            height: 100px;
+        }
+        
+        .error-title {
+            font-size: 1.5rem;
+        }
+        
+        .error-message {
+            font-size: 1rem;
+        }
+        
+        .error-button {
+            padding: 12px 18px;
+            font-size: 1rem;
+        }
+    }
+</style>
+</head>
+<body>
+    <div class="error-wrap">
+        <div class="error-content">
+            <div class="error-icon"></div>
+            <h1 class="error-title">抱歉，发生错误</h1>
+            <p class="error-message">
+                页面加载失败或出现逻辑错误。请尝试重新加载页面或联系我们获取帮助。
+            </p>
+            
+            <div class="error-actions">
+                <a href="#" class="error-button">重新加载页面</a>
+                <a href="#" class="error-link">联系技术支持</a>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 添加页面加载效果
+            document.body.classList.add('loaded');
+            
+            // 重新加载按钮功能
+            const reloadBtn = document.querySelector('.error-button');
+            reloadBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                // 添加点击效果
+                this.classList.add('error-button--loading');
+                this.innerHTML = '加载中...';
+                
+                // 模拟重新加载
+                setTimeout(function() {
+                    location.reload();
+                }, 1000);
+            });
+        });
+    </script>
+</body>
+</html>

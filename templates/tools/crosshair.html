@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>准星预览</title>
+    <style>
+        html, body {
+            margin: 0; padding: 0;
+            width: 100%; height: 100%;
+            background: transparent;
+            overflow: hidden;
+        }
+        #crosshair {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        #crosshair div {
+            position: absolute;
+        }
+    </style>
+</head>
+<body>
+    <div id="crosshair"></div>
+
+    <script>
+        (function() {
+            var p = new URLSearchParams(location.search);
+
+            // 优先从 localStorage 读取（config 页面保存的配置）
+            var savedCfg = null;
+            try {
+                var raw = localStorage.getItem('crosshair_config');
+                if (raw) savedCfg = JSON.parse(raw);
+            } catch(e) {}
+
+            // URL 参数优先，否则用 localStorage，最后用默认值
+            var color   = p.get('color')     || (savedCfg && savedCfg.color)     || '#00ff00';
+            var size    = parseInt(p.get('size'))    || (savedCfg && parseInt(savedCfg.size))   || 30;
+            var thickness = parseFloat(p.get('thickness')) || (savedCfg && parseFloat(savedCfg.thickness)) || 2;
+            var type    = p.get('type')      || (savedCfg && savedCfg.type)      || 'cross';
+
+            var el = document.getElementById('crosshair');
+
+            function buildCrosshair() {
+                el.innerHTML = '';
+                el.style.width  = size + 'px';
+                el.style.height = size + 'px';
+                el.style.color  = color;
+
+                var hw = thickness + 'px';
+                var c  = color;
+
+                function ce(tag, styles) {
+                    var el = document.createElement(tag);
+                    for (var k in styles) el.style[k] = styles[k];
+                    el.style.position = 'absolute';
+                    el.style.background = el.style.background || c;
+                    return el;
+                }
+
+                if (type === 'cross') {
+                    el.appendChild(ce('div', { width:'100%', height:hw, top:'50%', left:'0', transform:'translateY(-50%)' }));
+                    el.appendChild(ce('div', { width:hw, height:'100%', left:'50%', top:'0', transform:'translateX(-50%)' }));
+                } else if (type === 'gap') {
+                    var half = size * 0.35;
+                    el.appendChild(ce('div', { width:hw, height:half+'px', left:'50%', top:'0', transform:'translateX(-50%)' }));
+                    el.appendChild(ce('div', { width:hw, height:half+'px', left:'50%', bottom:'0', transform:'translateX(-50%)' }));
+                    el.appendChild(ce('div', { width:half+'px', height:hw, top:'50%', left:'0', transform:'translateY(-50%)' }));
+                    el.appendChild(ce('div', { width:half+'px', height:hw, top:'50%', right:'0', transform:'translateY(-50%)' }));
+                } else if (type === 'dot') {
+                    el.appendChild(ce('div', { width:hw, height:hw, borderRadius:'50%', top:'50%', left:'50%', transform:'translate(-50%,-50%)' }));
+                } else if (type === 'circle') {
+                    var d = size - thickness * 2;
+                    var ring = ce('div', { width:d+'px', height:d+'px', border:hw+' solid '+c, borderRadius:'50%', top:'50%', left:'50%', transform:'translate(-50%,-50%)' });
+                    ring.style.background = 'transparent';
+                    el.appendChild(ring);
+                } else if (type === 'cross-circle') {
+                    el.appendChild(ce('div', { width:'100%', height:hw, top:'50%', left:'0', transform:'translateY(-50%)' }));
+                    el.appendChild(ce('div', { width:hw, height:'100%', left:'50%', top:'0', transform:'translateX(-50%)' }));
+                    var ring2 = ce('div', { width:(size*0.6)+'px', height:(size*0.6)+'px', border:hw+' solid '+c, borderRadius:'50%', top:'50%', left:'50%', transform:'translate(-50%,-50%)' });
+                    ring2.style.background = 'transparent';
+                    el.appendChild(ring2);
+                } else if (type === 'chevron') {
+                    var sz = thickness * 3 + 'px';
+                    el.appendChild(ce('div', { width:sz, height:sz, borderRight:hw+' solid '+c, borderBottom:hw+' solid '+c, top:'50%', left:'15%', transform:'translateY(-50%) rotate(-45deg)' }));
+                    el.appendChild(ce('div', { width:sz, height:sz, borderRight:hw+' solid '+c, borderBottom:hw+' solid '+c, top:'50%', right:'15%', transform:'translateY(-50%) rotate(135deg)' }));
+                } else if (type === 'xcross') {
+                    el.appendChild(ce('div', { width:hw, height:'100%', left:'50%', top:'0', transform:'rotate(45deg)' }));
+                    el.appendChild(ce('div', { width:hw, height:'100%', left:'50%', top:'0', transform:'rotate(-45deg)' }));
+                } else if (type === 'square') {
+                    var sq = size - thickness * 4;
+                    var sqEl = ce('div', { width:sq+'px', height:sq+'px', border:hw+' solid '+c, top:'50%', left:'50%', transform:'translate(-50%,-50%)' });
+                    sqEl.style.background = 'transparent';
+                    el.appendChild(sqEl);
+                } else if (type === 'triangle') {
+                    var tw = size * 0.35 + 'px';
+                    var th = size * 0.55 + 'px';
+                    var tri = ce('div', { width:'0', height:'0', borderLeft:tw+' solid transparent', borderRight:tw+' solid transparent', borderBottom:th+' solid '+c, top:'10%', left:'50%', transform:'translateX(-50%)' });
+                    tri.style.background = 'transparent';
+                    el.appendChild(tri);
+                } else if (type === 'cross-dot') {
+                    el.appendChild(ce('div', { width:'100%', height:hw, top:'50%', left:'0', transform:'translateY(-50%)' }));
+                    el.appendChild(ce('div', { width:hw, height:'100%', left:'50%', top:'0', transform:'translateX(-50%)' }));
+                    var ds = thickness * 2.5 + 'px';
+                    el.appendChild(ce('div', { width:ds, height:ds, borderRadius:'50%', top:'50%', left:'50%', transform:'translate(-50%,-50%)' }));
+                } else if (type === 'frame') {
+                    var w30 = size * 0.3 + 'px';
+                    var h30 = size * 0.3 + 'px';
+                    el.appendChild(ce('div', { width:w30, height:hw, top:'0', left:'0' }));
+                    el.appendChild(ce('div', { width:w30, height:hw, top:'0', right:'0' }));
+                    el.appendChild(ce('div', { width:w30, height:hw, bottom:'0', left:'0' }));
+                    el.appendChild(ce('div', { width:w30, height:hw, bottom:'0', right:'0' }));
+                    el.appendChild(ce('div', { width:hw, height:h30, top:'0', left:'0' }));
+                    el.appendChild(ce('div', { width:hw, height:h30, top:'0', right:'0' }));
+                    el.appendChild(ce('div', { width:hw, height:h30, bottom:'0', left:'0' }));
+                    el.appendChild(ce('div', { width:hw, height:h30, bottom:'0', right:'0' }));
+                } else if (type === 'diamond') {
+                    var dm = size - thickness * 4;
+                    var dmEl = ce('div', { width:dm+'px', height:dm+'px', border:hw+' solid '+c, top:'50%', left:'50%', transform:'translate(-50%,-50%) rotate(45deg)' });
+                    dmEl.style.background = 'transparent';
+                    el.appendChild(dmEl);
+                }
+            }
+
+            buildCrosshair();
+
+            // 通过 BroadcastChannel 监听 config 页面的实时配置更新
+            var channel = new BroadcastChannel('crosshair_sync');
+            channel.onmessage = function(e) {
+                var cfg = e.data;
+                color = cfg.color;
+                size = parseInt(cfg.size);
+                thickness = parseFloat(cfg.thickness);
+                type = cfg.type;
+                buildCrosshair();
+            };
+        })();
+    </script>
+</body>
+</html>

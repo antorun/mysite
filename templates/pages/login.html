@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录 - AUTORUN</title>
+    <style>
+        :root {
+            --bg: #0d1117;
+            --card-bg: #161b22;
+            --border: #30363d;
+            --text: #c9d1d9;
+            --text-secondary: #8b949e;
+            --accent: #58a6ff;
+            --danger: #f85149;
+            --success: #3fb950;
+            --radius: 10px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .login-box {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 40px 32px;
+            width: 100%;
+            max-width: 380px;
+        }
+        .login-box h1 {
+            text-align: center;
+            font-size: 1.8rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #58a6ff, #a371f7);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+        .login-box .subtitle {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            margin-bottom: 28px;
+        }
+        .form-group {
+            margin-bottom: 18px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 10px 14px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text);
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.15s, box-shadow 0.15s;
+            font-family: inherit;
+        }
+        .form-group input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.15);
+        }
+        .btn {
+            width: 100%;
+            padding: 11px;
+            border: none;
+            border-radius: var(--radius);
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            font-family: inherit;
+        }
+        .btn-primary {
+            background: var(--accent);
+            color: #fff;
+        }
+        .btn-primary:hover { opacity: 0.9; }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+        .error-msg {
+            color: var(--danger);
+            font-size: 0.82rem;
+            text-align: center;
+            margin-top: 12px;
+            min-height: 20px;
+        }
+        .success-msg {
+            color: var(--success);
+            font-size: 0.82rem;
+            text-align: center;
+            margin-top: 12px;
+            min-height: 20px;
+        }
+        .toggle-mode {
+            text-align: center;
+            margin-top: 16px;
+        }
+        .toggle-mode a {
+            color: var(--accent);
+            cursor: pointer;
+            font-size: 0.82rem;
+            text-decoration: none;
+        }
+        .toggle-mode a:hover { text-decoration: underline; }
+
+        /* ===== 移动端适配 ===== */
+        @media (max-width: 420px) {
+            body { padding: 12px; }
+            .login-box {
+                padding: 28px 20px;
+                border-radius: 12px;
+            }
+            .login-box h1 { font-size: 1.5rem; }
+            .login-box .subtitle { font-size: 0.78rem; margin-bottom: 22px; }
+            .form-group input { padding: 10px 12px; font-size: 0.85rem; }
+            .btn { padding: 10px; font-size: 0.85rem; }
+        }
+    </style>
+</head>
+<body>
+    <!-- 登录模式 -->
+    <div class="login-box" id="loginBox">
+        <h1>AUTORUN</h1>
+        <p class="subtitle">请输入密码登录</p>
+        <div class="form-group">
+            <label>用户名</label>
+            <input type="text" id="username" autocomplete="username">
+        </div>
+        <div class="form-group">
+            <label>密码</label>
+            <input type="password" id="password" placeholder="请输入密码" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+        </div>
+        <button class="btn btn-primary" id="loginBtn" onclick="doLogin()">登 录</button>
+        <div class="error-msg" id="loginError"></div>
+        <div class="toggle-mode">
+            <a onclick="showChangePassword()">修改密码</a>
+            &nbsp;·&nbsp;
+            <a onclick="showRegister()">立即注册</a>
+        </div>
+    </div>
+
+    <!-- 注册模式 -->
+    <div class="login-box" id="registerBox" style="display:none;">
+        <h1>AUTORUN</h1>
+        <p class="subtitle">创建新账号</p>
+        <div class="form-group">
+            <label>用户名</label>
+            <input type="text" id="regUsername" placeholder="3-20 位，不含空格" autocomplete="username">
+        </div>
+        <div class="form-group">
+            <label>密码</label>
+            <input type="password" id="regPassword" placeholder="至少 4 位" autocomplete="new-password">
+        </div>
+        <div class="form-group">
+            <label>确认密码</label>
+            <input type="password" id="regConfirm" placeholder="再次输入密码" autocomplete="new-password" onkeydown="if(event.key==='Enter')doRegister()">
+        </div>
+        <button class="btn btn-primary" id="registerBtn" onclick="doRegister()">注 册</button>
+        <div class="error-msg" id="registerError"></div>
+        <div class="success-msg" id="registerSuccess"></div>
+        <div class="toggle-mode">
+            <a onclick="showLogin()">返回登录</a>
+        </div>
+    </div>
+
+    <!-- 修改密码模式 -->
+    <div class="login-box" id="changePwdBox" style="display:none;">
+        <h1>AUTORUN</h1>
+        <p class="subtitle">修改密码</p>
+        <div class="form-group">
+            <label>用户名</label>
+            <input type="text" id="cpUsername" autocomplete="username">
+        </div>
+        <div class="form-group">
+            <label>原密码</label>
+            <input type="password" id="oldPassword" placeholder="请输入原密码" autocomplete="current-password">
+        </div>
+        <div class="form-group">
+            <label>新密码</label>
+            <input type="password" id="newPassword" placeholder="至少4位" autocomplete="new-password">
+        </div>
+        <div class="form-group">
+            <label>确认新密码</label>
+            <input type="password" id="confirmPassword" placeholder="再次输入新密码" autocomplete="new-password" onkeydown="if(event.key==='Enter')doChangePassword()">
+        </div>
+        <button class="btn btn-primary" id="changePwdBtn" onclick="doChangePassword()">确认修改</button>
+        <div class="error-msg" id="changePwdError"></div>
+        <div class="success-msg" id="changePwdSuccess"></div>
+        <div class="toggle-mode">
+            <a onclick="showLogin()">返回登录</a>
+        </div>
+    </div>
+
+    <script>
+        function showChangePassword() {
+            document.getElementById('loginBox').style.display = 'none';
+            document.getElementById('changePwdBox').style.display = 'block';
+            document.getElementById('changePwdError').textContent = '';
+            document.getElementById('changePwdSuccess').textContent = '';
+            document.getElementById('cpUsername').value = document.getElementById('username').value;
+        }
+
+        function showLogin() {
+            document.getElementById('changePwdBox').style.display = 'none';
+            document.getElementById('registerBox').style.display = 'none';
+            document.getElementById('loginBox').style.display = 'block';
+            document.getElementById('loginError').textContent = '';
+        }
+
+        function showRegister() {
+            document.getElementById('loginBox').style.display = 'none';
+            document.getElementById('changePwdBox').style.display = 'none';
+            document.getElementById('registerBox').style.display = 'block';
+            document.getElementById('registerError').textContent = '';
+            document.getElementById('registerSuccess').textContent = '';
+        }
+
+        async function doRegister() {
+            const username = document.getElementById('regUsername').value.trim();
+            const password = document.getElementById('regPassword').value;
+            const confirm = document.getElementById('regConfirm').value;
+            const btn = document.getElementById('registerBtn');
+            const error = document.getElementById('registerError');
+            const success = document.getElementById('registerSuccess');
+
+            error.textContent = '';
+            success.textContent = '';
+
+            if (!username || !password || !confirm) {
+                error.textContent = '请填写所有字段';
+                return;
+            }
+            if (password !== confirm) {
+                error.textContent = '两次输入的密码不一致';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = '注册中...';
+
+            try {
+                const resp = await fetch('/register-api', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password, confirmPassword: confirm })
+                });
+                const data = await resp.json();
+                if (data.status === 'ok') {
+                    success.textContent = '注册成功！即将跳转到登录...';
+                    setTimeout(() => {
+                        showLogin();
+                        document.getElementById('username').value = username;
+                        document.getElementById('password').value = '';
+                    }, 1500);
+                } else {
+                    error.textContent = data.message || '注册失败';
+                }
+            } catch (e) {
+                error.textContent = '网络错误，请重试';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '注 册';
+            }
+        }
+
+        async function doLogin() {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const btn = document.getElementById('loginBtn');
+            const error = document.getElementById('loginError');
+
+            error.textContent = '';
+            if (!username || !password) {
+                error.textContent = '请输入用户名和密码';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = '登录中...';
+
+            try {
+                const resp = await fetch('/login-api', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await resp.json();
+                if (data.status === 'ok') {
+                    window.location.href = '/main/';
+                } else {
+                    error.textContent = data.message || '登录失败';
+                }
+            } catch (e) {
+                error.textContent = '网络错误，请重试';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '登 录';
+            }
+        }
+
+        async function doChangePassword() {
+            const username = document.getElementById('cpUsername').value.trim();
+            const oldPassword = document.getElementById('oldPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            const btn = document.getElementById('changePwdBtn');
+            const error = document.getElementById('changePwdError');
+            const success = document.getElementById('changePwdSuccess');
+
+            error.textContent = '';
+            success.textContent = '';
+
+            if (!username || !oldPassword || !newPassword || !confirmPassword) {
+                error.textContent = '请填写所有字段';
+                return;
+            }
+            if (newPassword !== confirmPassword) {
+                error.textContent = '两次输入的新密码不一致';
+                return;
+            }
+            if (newPassword.length < 4) {
+                error.textContent = '新密码至少4位';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = '修改中...';
+
+            try {
+                const resp = await fetch('/change-password-api', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, oldPassword, newPassword })
+                });
+                const data = await resp.json();
+                if (data.status === 'ok') {
+                    success.textContent = '密码修改成功！3秒后跳转登录页...';
+                    setTimeout(() => {
+                        showLogin();
+                        document.getElementById('username').value = username;
+                        document.getElementById('password').value = '';
+                    }, 3000);
+                } else {
+                    error.textContent = data.message || '修改失败';
+                }
+            } catch (e) {
+                error.textContent = '网络错误，请重试';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '确认修改';
+            }
+        }
+    </script>
+</body>
+</html>

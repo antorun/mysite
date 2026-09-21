@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>硕天电源 - APK 下载</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #6C63FF;
+            --primary-light: #847dff;
+            --secondary: #4CAF50;
+            --dark-bg: #0d0f18;
+            --dark-surface: #171a2d;
+            --text-primary: #E0E0E0;
+            --text-secondary: #a0a5c1;
+            --gradient: linear-gradient(135deg, #6C63FF, #4CAF50);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            font-family: 'Segoe UI', 'Noto Sans', system-ui, -apple-system, sans-serif;
+            background: var(--dark-bg);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            text-align: center;
+            padding: 10px;
+        }
+        
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 15% 25%, rgba(108, 99, 255, 0.1), transparent 25%),
+                radial-gradient(circle at 85% 75%, rgba(76, 175, 80, 0.1), transparent 30%);
+            z-index: -1;
+        }
+        
+        .container {
+            background: rgba(23, 26, 45, 0.85);
+            border-radius: 16px;
+            padding: 35px 20px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(108, 99, 255, 0.15);
+            backdrop-filter: blur(8px);
+            max-width: 95%;
+            width: 100%;
+            margin: auto;
+        }
+        
+        .container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: var(--gradient);
+        }
+        
+        .app-icon-container {
+            width: 100px;
+            height: 100px;
+            border-radius: 20px;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.4);
+            background: linear-gradient(135deg, #2c3e50, #4a235a);
+        }
+        
+        .app-icon-container::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: 
+                linear-gradient(45deg, transparent 25%, rgba(255,255,255,0.1) 40%, transparent 55%);
+            transform: rotate(45deg);
+            animation: shineEffect 4s infinite linear;
+        }
+        
+        .app-icon {
+            width: 70%;
+            height: 70%;
+            object-fit: contain;
+            z-index: 2;
+        }
+        
+        @keyframes shineEffect {
+            0% { transform: translateX(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) rotate(45deg); }
+        }
+        
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            background: linear-gradient(to right, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            letter-spacing: 0.5px;
+        }
+        
+        .download-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            background: var(--gradient);
+            color: white;
+            padding: 18px 20px;
+            margin: 0 auto;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1.2rem;
+            box-shadow: 0 6px 20px rgba(108, 99, 255, 0.4);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            border: none;
+            cursor: pointer;
+            width: 100%;
+            max-width: 300px;
+            z-index: 3;
+        }
+        
+        .download-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(108, 99, 255, 0.6);
+        }
+        
+        .download-btn:active {
+            transform: translateY(1px);
+            box-shadow: 0 4px 15px rgba(108, 99, 255, 0.4);
+        }
+        
+        .download-btn::after {
+            content: '';
+            position: absolute;
+            top: -10px;
+            left: -50%;
+            width: 150%;
+            height: 200%;
+            background: linear-gradient(to right, 
+                rgba(255,255,255,0) 0%,
+                rgba(255,255,255,0.2) 50%,
+                rgba(255,255,255,0) 100%);
+            transform: rotate(30deg) translateY(-50%);
+            animation: buttonShine 3s infinite;
+            z-index: 1;
+        }
+        
+        @keyframes buttonShine {
+            0% { top: -100%; }
+            100% { top: 150%; }
+        }
+        
+        .file-size {
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.85);
+            font-weight: 400;
+            margin-top: 8px;
+            display: block;
+            text-align: center;
+        }
+        
+        .custom-btn {
+            margin-top: 20px;
+            display: inline-flex;
+            gap: 8px;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+        
+        .custom-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+        
+        #iconInput {
+            display: none;
+        }
+        
+        /* 手机旋转适配 */
+        @media (orientation: landscape) {
+            .container {
+                max-width: 450px;
+                padding: 25px;
+            }
+        }
+        
+        @keyframes floating {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-12px); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!--<div class="app-icon-container" style="animation: floating 3s ease-in-out infinite">-->
+        <!--    <div class="app-icon">-->
+        <!--        <i class="fas fa-bolt fa-inverse" style="font-size: 3rem;"></i>-->
+        <!--    </div>-->
+        <!--</div>-->
+        
+        <h1>硕天电源</h1>
+        
+        <a href="/static/apks/app-release.apk" class="download-btn" download>
+            <i class="fas fa-download"></i>
+            下载安装包
+        </a>
+        <span class="file-size">33.49MB</span>
+        
+    </div>
+    
+    <script>
+        // 点击下载按钮的交互
+        const downloadBtn = document.querySelector('.download-btn');
+        
+        downloadBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // 添加加载动画
+            const originalContent = downloadBtn.innerHTML;
+            downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 准备下载...';
+            downloadBtn.style.pointerEvents = 'none';
+            
+            // 阻止用户多次点击
+            let isDownloading = false;
+            if (isDownloading) return;
+            isDownloading = true;
+            
+            // 模拟短暂加载后开始下载
+            setTimeout(() => {
+                // 开始下载
+                const downloadAnchor = document.createElement('a');
+                downloadAnchor.href = downloadBtn.getAttribute('href');
+                downloadAnchor.download = '';
+                document.body.appendChild(downloadAnchor);
+                downloadAnchor.click();
+                document.body.removeChild(downloadAnchor);
+                
+                // 恢复按钮状态
+                setTimeout(() => {
+                    downloadBtn.innerHTML = originalContent;
+                    downloadBtn.style.pointerEvents = 'auto';
+                    isDownloading = false;
+                    
+                    // 添加成功反馈
+                    const icon = downloadBtn.querySelector('i');
+                    if (icon) {
+                        icon.className = 'fas fa-check-circle';
+                        setTimeout(() => {
+                            icon.className = 'fas fa-download';
+                            downloadBtn.innerHTML = originalContent;
+                        }, 1500);
+                    }
+                }, 2000);
+            }, 800);
+        });
+        
+        // 阻止双击放大
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', function(event) {
+            const now = (new Date()).getTime();
+            if (now - lastTouchEnd <= 300) {
+                event.preventDefault();
+            }
+            lastTouchEnd = now;
+        }, false);
+        
+        // 触摸反馈效果
+        document.querySelectorAll('a, button').forEach(el => {
+            el.addEventListener('touchstart', () => {
+                el.style.transform = 'scale(0.95)';
+            });
+            
+            el.addEventListener('touchend', () => {
+                setTimeout(() => {
+                    el.style.transform = '';
+                }, 100);
+            });
+        });
+    </script>
+</body>
+</html>

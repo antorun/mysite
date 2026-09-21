@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HLS 视频播放器</title>
+    <script src="https://unpkg.com/hls.js@latest"></script>
+    <style>
+        :root {
+            --bg: #0d1117;
+            --card-bg: #161b22;
+            --border: #30363d;
+            --text: #c9d1d9;
+            --text-secondary: #8b949e;
+            --accent: #58a6ff;
+            --accent-green: #3fb950;
+            --radius: 8px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body {
+            height: 100%;
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 24px 16px 40px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 6px;
+            color: var(--text);
+        }
+        .header .subtitle {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+        }
+        .player-container {
+            background: #000;
+            border-radius: var(--radius);
+            overflow: hidden;
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+        }
+        #video-player {
+            width: 100%;
+            aspect-ratio: 16/9;
+            display: block;
+        }
+        .controls {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px;
+        }
+        .control-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 10px 18px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-family: inherit;
+            transition: all 0.15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+        .btn:hover { border-color: var(--accent); color: var(--accent); }
+        .btn.accent { background: var(--accent); border-color: var(--accent); color: #fff; }
+        .btn.accent:hover { opacity: 0.85; }
+        input[type="text"] {
+            flex: 1;
+            min-width: 180px;
+            padding: 10px 14px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--bg);
+            color: var(--text);
+            font-size: 0.85rem;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+        input[type="text"]:focus { border-color: var(--accent); }
+        input::placeholder { color: var(--text-secondary); }
+        .quality-section {
+            margin-bottom: 12px;
+        }
+        .quality-section label {
+            display: block;
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+        #quality-select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--bg);
+            color: var(--text);
+            font-size: 0.85rem;
+            font-family: inherit;
+            outline: none;
+        }
+        .status {
+            text-align: center;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            padding: 8px;
+            border-radius: 6px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+        }
+        .status.playing { color: var(--accent-green); border-color: var(--accent-green); }
+        .status.error { color: #f85149; border-color: #f85149; }
+        @media (max-width: 600px) {
+            .container { padding: 16px 10px 30px; }
+            .header h1 { font-size: 1.2rem; }
+            .controls { padding: 12px; }
+            .btn { padding: 9px 14px; font-size: 0.8rem; }
+            .control-group { flex-direction: column; }
+            input[type="text"] { min-width: auto; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>HLS 视频播放器</h1>
+            <p class="subtitle">支持 M3U8 / M3U 格式的 HTTP Live Streaming 视频播放</p>
+        </div>
+        <div class="player-container">
+            <video id="video-player" controls playsinline></video>
+        </div>
+        <div class="controls">
+            <div class="control-group">
+                <input type="text" id="stream-url" placeholder="输入 M3U8 流地址…" value="https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8">
+                <button id="play-btn" class="btn accent">▶ 播放</button>
+                <button id="pause-btn" class="btn">⏸ 暂停</button>
+            </div>
+            <div class="quality-section">
+                <label for="quality-select">视频质量</label>
+                <select id="quality-select">
+                    <option value="auto">自动选择</option>
+                </select>
+            </div>
+            <div class="status" id="status-message">准备播放…</div>
+        </div>
+    </div>
+
+    <script>
+        const videoPlayer = document.getElementById('video-player');
+        const streamUrlInput = document.getElementById('stream-url');
+        const playBtn = document.getElementById('play-btn');
+        const pauseBtn = document.getElementById('pause-btn');
+        const statusMsg = document.getElementById('status-message');
+        const qualitySelect = document.getElementById('quality-select');
+        let hls = null;
+
+        function setStatus(text, cls) {
+            statusMsg.textContent = text;
+            statusMsg.className = 'status' + (cls ? ' ' + cls : '');
+        }
+
+        function initPlayer(url) {
+            if (hls) { hls.destroy(); }
+            if (videoPlayer.canPlayType('application/vnd.apple.mpegurl')) {
+                setStatus('使用原生 HLS 支持');
+                videoPlayer.src = url;
+                videoPlayer.play();
+                return;
+            }
+            if (Hls.isSupported()) {
+                hls = new Hls({ debug: false, enableWorker: true, lowLatencyMode: true, backBufferLength: 90 });
+                hls.loadSource(url);
+                hls.attachMedia(videoPlayer);
+                hls.on(Hls.Events.MANIFEST_PARSED, function(event, data) {
+                    setStatus('流加载成功', 'playing');
+                    qualitySelect.innerHTML = '<option value="auto">自动选择</option>';
+                    data.levels.forEach(function(level, index) {
+                        var opt = document.createElement('option');
+                        opt.value = index;
+                        opt.textContent = level.height + 'p (' + Math.round(level.bitrate / 1000) + 'kbps)';
+                        qualitySelect.appendChild(opt);
+                    });
+                });
+                hls.on(Hls.Events.ERROR, function(event, data) {
+                    setStatus('播放错误: ' + data.details, 'error');
+                    if (data.fatal) {
+                        if (data.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
+                        else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
+                    }
+                });
+                hls.on(Hls.Events.FRAG_LOADED, function() {
+                    var lvl = hls.currentLevel > -1 ? hls.levels[hls.currentLevel].height + 'p' : '自动质量';
+                    setStatus('正在播放 ' + lvl, 'playing');
+                });
+                videoPlayer.play();
+            } else {
+                setStatus('浏览器不支持 HLS 播放', 'error');
+            }
+        }
+
+        playBtn.addEventListener('click', function() {
+            var url = streamUrlInput.value.trim();
+            if (url && (url.endsWith('.m3u8') || url.endsWith('.m3u') || url.includes('.m3u8') || url.includes('.m3u'))) {
+                initPlayer(url);
+            } else {
+                setStatus('请输入有效的 M3U8 流地址', 'error');
+            }
+        });
+        pauseBtn.addEventListener('click', function() {
+            if (!videoPlayer.paused) { videoPlayer.pause(); setStatus('已暂停'); }
+        });
+        qualitySelect.addEventListener('change', function() {
+            if (hls) hls.currentLevel = this.value === 'auto' ? -1 : parseInt(this.value);
+        });
+        videoPlayer.addEventListener('playing', function() { setStatus('正在播放', 'playing'); });
+        videoPlayer.addEventListener('waiting', function() { setStatus('缓冲中…'); });
+        videoPlayer.addEventListener('ended', function() { setStatus('播放结束'); });
+
+        window.addEventListener('load', function() { initPlayer(streamUrlInput.value); });
+    </script>
+</body>
+</html>

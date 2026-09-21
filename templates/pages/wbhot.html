@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>微博实时热搜榜</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        body {
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            padding: 40px 0;
+            background: linear-gradient(135deg, #ff8140, #ff4a4a);
+            color: white;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .hotsearch-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .hotsearch-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hotsearch-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .rank-badge {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            background: #ff6b3c;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 12px;
+        }
+
+        .card-title {
+            font-size: 16px;
+            color: #333;
+            font-weight: 600;
+            flex-grow: 1;
+        }
+
+        .card-image {
+            width: 100%;
+            height: 180px;
+            border-radius: 8px;
+            object-fit: cover;
+            margin-bottom: 15px;
+            background: #f0f0f0;
+        }
+
+        .card-desc {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.5;
+            margin-bottom: 15px;
+        }
+
+        .hot-indicator {
+            display: flex;
+            align-items: center;
+            color: #ff6b3c;
+            font-size: 14px;
+        }
+
+        .hot-indicator::before {
+            content: "🔥";
+            margin-right: 6px;
+        }
+
+        .tag {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(255,107,60,0.1);
+            color: #ff6b3c;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        @media (max-width: 768px) {
+            .hotsearch-list {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>微博实时热搜榜</h1>
+            <p>更新于 2024年3月14日 15:36</p>
+        </div>
+
+        <div class="hotsearch-list">
+            <!-- 这里插入热搜卡片 -->
+        </div>
+    </div>
+
+    <script>
+        const hotData = {/* 原始JSON数据 */};
+
+        function createCard(item, index) {
+            return `
+                <div class="hotsearch-card">
+                    <div class="tag">热度 ${item.desc_extr.toLocaleString()}</div>
+                    <div class="card-header">
+                        <div class="rank-badge">${index + 1}</div>
+                        <div class="card-title">${item.key.replace(/#/g, '')}</div>
+                    </div>
+                    ${item.pic ? `<img src="${item.pic}" class="card-image" alt="热搜图片">` : ''}
+                    <div class="card-desc">${item.desc}</div>
+                    <div class="hot-indicator">讨论热度 ${item.desc_extr.toLocaleString()}</div>
+                </div>
+            `;
+        }
+
+        document.querySelector('.hotsearch-list').innerHTML = 
+            hotData.cards[0].card_group.map((item, index) => createCard(item, index)).join('');
+    </script>
+</body>
+</html>

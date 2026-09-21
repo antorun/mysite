@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AUTORUN - 后台管理</title>
+    <style>
+        :root {
+            --bg: #0d1117;
+            --sidebar-bg: #161b22;
+            --card-bg: #161b22;
+            --border: #30363d;
+            --text: #c9d1d9;
+            --text-secondary: #8b949e;
+            --accent: #58a6ff;
+            --accent-green: #3fb950;
+            --accent-orange: #d2991d;
+            --accent-purple: #a371f7;
+            --accent-red: #f85149;
+            --sidebar-width: 240px;
+            --header-height: 56px;
+            --radius: 8px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body {
+            height: 100%;
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            overflow: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
+        a { text-decoration: none; color: inherit; }
+
+        /* ===== 整体布局 ===== */
+        .layout {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* ===== 左侧菜单 ===== */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--sidebar-bg);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            transition: width 0.25s ease;
+        }
+        .sidebar.collapsed-sidebar {
+            width: 0;
+            border-right: none;
+            overflow: hidden;
+        }
+        .sidebar-logo {
+            padding: 20px 20px 16px;
+            border-bottom: 1px solid var(--border);
+        }
+        .sidebar-logo h1 {
+            font-size: 1.3rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #58a6ff, #a371f7);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 2px;
+        }
+        .sidebar-logo p {
+            color: var(--text-secondary);
+            font-size: 0.7rem;
+            margin-top: 2px;
+        }
+        .sidebar-nav {
+            flex: 1;
+            padding: 8px 0;
+        }
+        .nav-group {
+            margin-bottom: 4px;
+        }
+        .nav-group-title {
+            padding: 12px 20px 6px;
+            font-size: 0.68rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: color 0.15s;
+        }
+        .nav-group-title:hover {
+            color: var(--text);
+        }
+        .nav-group-title .arrow {
+            font-size: 0.6rem;
+            transition: transform 0.2s ease;
+            display: inline-block;
+        }
+        .nav-group.collapsed .nav-item {
+            display: none;
+        }
+        .nav-group.collapsed .nav-group-title .arrow {
+            transform: rotate(-90deg);
+        }
+        .nav-group.collapsed .nav-group-title {
+            padding-bottom: 2px;
+        }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 20px;
+            font-size: 0.84rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.15s ease;
+            border-left: 3px solid transparent;
+            user-select: none;
+        }
+        .nav-item:hover {
+            color: var(--text);
+            background: rgba(88, 166, 255, 0.05);
+        }
+        .nav-item.active {
+            color: var(--accent);
+            background: rgba(88, 166, 255, 0.08);
+            border-left-color: var(--accent);
+        }
+        .nav-icon {
+            width: 20px;
+            text-align: center;
+            font-size: 0.9rem;
+            flex-shrink: 0;
+            line-height: 1;
+        }
+        .nav-icon.blue   { color: #58a6ff; }
+        .nav-icon.green  { color: #3fb950; }
+        .nav-icon.orange { color: #d2991d; }
+        .nav-icon.purple { color: #a371f7; }
+        .nav-icon.red    { color: #f85149; }
+        .nav-item.active .nav-icon { color: inherit; }
+
+        .sidebar-footer {
+            padding: 12px 20px;
+            border-top: 1px solid var(--border);
+        }
+
+        /* ===== 右侧主体 ===== */
+        .main-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        /* 顶部栏 */
+        .topbar {
+            height: var(--header-height);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            background: var(--bg);
+            flex-shrink: 0;
+        }
+        .topbar-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .topbar-breadcrumb {
+            font-size: 0.82rem;
+            color: var(--text);
+            font-weight: 500;
+        }
+        .topbar-breadcrumb span {
+            color: var(--text-secondary);
+        }
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #58a6ff, #a371f7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 700;
+            color: #fff;
+            flex-shrink: 0;
+        }
+        .user-meta {
+            display: flex;
+            flex-direction: column;
+            line-height: 1.2;
+        }
+        .user-name {
+            font-size: 0.82rem;
+            color: var(--text);
+            font-weight: 500;
+        }
+        .user-role {
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+        }
+        .admin-badge-sm {
+            font-size: 0.6rem;
+            padding: 1px 6px;
+            border-radius: 8px;
+            background: rgba(163, 113, 247, 0.15);
+            color: #a371f7;
+            font-weight: 600;
+            margin-left: 4px;
+        }
+        .btn-logout {
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 4px 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: transparent;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+        .btn-logout:hover {
+            color: var(--accent-red);
+            border-color: var(--accent-red);
+        }
+
+        /* 内容 iframe 区域 */
+        .content-frame {
+            flex: 1;
+            border: none;
+            background: var(--bg);
+            width: 100%;
+        }
+
+        /* 侧边栏收起按钮 */
+        .sidebar-collapse-btn {
+            position: fixed;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 50;
+            width: 20px;
+            height: 48px;
+            background: var(--sidebar-bg);
+            border: 1px solid var(--border);
+            border-left: none;
+            border-radius: 0 6px 6px 0;
+            color: var(--text-secondary);
+            font-size: 0.6rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: left 0.25s ease, color 0.15s;
+            padding: 0;
+        }
+        .sidebar-collapse-btn:hover {
+            color: var(--text);
+        }
+        .arrow-icon {
+            transition: transform 0.25s ease;
+            display: inline-block;
+        }
+
+        /* 移动端汉堡菜单按钮 */
+        .menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            color: var(--text);
+            font-size: 1.4rem;
+            cursor: pointer;
+            padding: 4px;
+            line-height: 1;
+        }
+
+        /* ===== 响应式 ===== */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                left: -100%;
+                top: 0;
+                bottom: 0;
+                z-index: 100;
+                transition: left 0.25s ease;
+                box-shadow: 4px 0 24px rgba(0,0,0,0.5);
+                width: 260px;
+            }
+            .sidebar.open {
+                left: 0;
+            }
+            .sidebar.collapsed-sidebar {
+                width: 0;
+                left: -100%;
+            }
+            .sidebar-overlay {
+                display: none;
+                position: fixed;
+                inset: 0;
+                background: rgba(0,0,0,0.5);
+                z-index: 99;
+            }
+            .sidebar-overlay.show {
+                display: block;
+            }
+            .menu-toggle {
+                display: block;
+            }
+            .sidebar-collapse-btn {
+                display: none;
+            }
+            .topbar {
+                padding: 0 12px;
+            }
+            .topbar-breadcrumb {
+                font-size: 0.75rem;
+            }
+            .user-name {
+                display: none;
+            }
+            .user-role {
+                display: none;
+            }
+            .admin-badge-sm {
+                display: none;
+            }
+            .btn-logout {
+                font-size: 0.7rem;
+                padding: 3px 10px;
+            }
+            .content-frame {
+                /* 确保 iframe 在移动端也能正常滚动 */
+                -webkit-overflow-scrolling: touch;
+            }
+        }
+
+        /* 小屏手机优化 */
+        @media (max-width: 400px) {
+            .topbar-breadcrumb {
+                font-size: 0.7rem;
+                max-width: 140px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            .btn-logout {
+                padding: 2px 8px;
+                font-size: 0.65rem;
+            }
+        }
+
+        /* ===== 自定义滚动条（深色主题） ===== */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #484f58;
+        }
+        /* Firefox 滚动条 */
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: var(--border) transparent;
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <!-- 移动端遮罩 -->
+        <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+        <!-- 左侧菜单 -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-logo">
+                <h1>AUTORUN</h1>
+                <p>后台管理系统</p>
+            </div>
+            <nav class="sidebar-nav">
+                <!-- 工具 -->
+                <div class="nav-group">
+                    <div class="nav-group-title" onclick="toggleGroup(this)">工具 <span class="arrow">▼</span></div>
+                    <a class="nav-item" data-href="/reward/" onclick="navigate(this, '激励广告')">
+                        <span class="nav-icon green">🎁</span> 激励广告
+                    </a>
+                    <a class="nav-item" data-href="/controller/" onclick="navigate(this, '颜色拾取')">
+                        <span class="nav-icon purple">🎨</span> 颜色拾取
+                    </a>
+                    <a class="nav-item" data-href="/setting/" onclick="navigate(this, '准星配置')">
+                        <span class="nav-icon blue">⚙</span> 准星配置
+                    </a>
+                    <a class="nav-item" data-href="/setting/crosshair/" onclick="navigate(this, '准星预览')">
+                        <span class="nav-icon orange">🎯</span> 准星预览
+                    </a>
+                </div>
+
+                <!-- 媒体播放 -->
+                <div class="nav-group">
+                    <div class="nav-group-title" onclick="toggleGroup(this)">媒体播放 <span class="arrow">▼</span></div>
+                    <a class="nav-item" data-href="/player/" onclick="navigate(this, '视频播放器')">
+                        <span class="nav-icon red">▶</span> 视频播放器
+                    </a>
+                    <a class="nav-item" data-href="/M3U8_player/" onclick="navigate(this, 'M3U8 播放器')">
+                        <span class="nav-icon red">▶</span> M3U8 播放器
+                    </a>
+                    <a class="nav-item" data-href="/radio/" onclick="navigate(this, '网络电台')">
+                        <span class="nav-icon green">📻</span> 网络电台
+                    </a>
+                </div>
+
+                <!-- 服务器查询 -->
+                <div class="nav-group">
+                    <div class="nav-group-title" onclick="toggleGroup(this)">服务器查询 <span class="arrow">▼</span></div>
+                    <a class="nav-item" data-href="/server_search" onclick="navigate(this, '服务器搜索')">
+                        <span class="nav-icon blue">🔍</span> 服务器搜索
+                    </a>
+                    <a class="nav-item" data-href="/wang/" onclick="navigate(this, '9996 服务器')">
+                        <span class="nav-icon orange">🌐</span> 9996 服务器
+                    </a>
+                    <a class="nav-item" data-href="/scumplayer/" onclick="navigate(this, 'SCUM 玩家')">
+                        <span class="nav-icon blue">📊</span> SCUM 在线玩家
+                    </a>
+                    <a class="nav-item" data-href="/servernum/" onclick="navigate(this, 'BM 查询')">
+                        <span class="nav-icon blue">📊</span> BM 服务器查询
+                    </a>
+                    <a class="nav-item" data-href="/map_info/" onclick="navigate(this, '游戏地图')">
+                        <span class="nav-icon green">🗺</span> 游戏地图
+                    </a>
+                </div>
+
+                <!-- API 接口 -->
+                <div class="nav-group">
+                    <div class="nav-group-title" onclick="toggleGroup(this)">API 接口 <span class="arrow">▼</span></div>
+                    <a class="nav-item" data-href="/subscribe/" onclick="navigate(this, '订阅聚合')">
+                        <span class="nav-icon blue">🔗</span> 订阅聚合
+                    </a>
+                    <a class="nav-item" data-href="/get_vmess/" onclick="navigate(this, 'Vmess 节点')">
+                        <span class="nav-icon orange">🔒</span> Vmess 节点
+                    </a>
+                    <a class="nav-item" data-href="/freeVmessList/" onclick="navigate(this, '免费节点')">
+                        <span class="nav-icon orange">🔒</span> 免费节点
+                    </a>
+                    <a class="nav-item" data-href="/freeservers/" onclick="navigate(this, '免费服务器')">
+                        <span class="nav-icon green">🌐</span> 免费服务器
+                    </a>
+                    <a class="nav-item" data-href="/wbhotword/" onclick="navigate(this, '微博热搜')">
+                        <span class="nav-icon red">🔥</span> 微博热搜
+                    </a>
+                    <a class="nav-item" data-href="/9996num/" onclick="navigate(this, '9996 API')">
+                        <span class="nav-icon blue">📊</span> 9996 状态
+                    </a>
+                </div>
+
+                <!-- 移动端 -->
+                <div class="nav-group">
+                    <div class="nav-group-title" onclick="toggleGroup(this)">移动端 <span class="arrow">▼</span></div>
+                    <a class="nav-item" data-href="/moble/device/" onclick="navigate(this, '设备检测')">
+                        <span class="nav-icon purple">💻</span> 设备检测
+                    </a>
+                    <a class="nav-item" data-href="/download/" onclick="navigate(this, 'APK 下载')">
+                        <span class="nav-icon green">📥</span> APK 下载
+                    </a>
+                </div>
+
+                <!-- AI 功能 -->
+                <div class="nav-group">
+                    <div class="nav-group-title" onclick="toggleGroup(this)">AI 功能 <span class="arrow">▼</span></div>
+                    <a class="nav-item" data-href="/ai-chat/" onclick="navigate(this, 'AI 聊天')">
+                        <span class="nav-icon purple">🤖</span> AI 聊天助手
+                    </a>
+                    <a class="nav-item" data-href="/nvidia-chat/" onclick="navigate(this, 'NVIDIA 聊天')">
+                        <span class="nav-icon green">🖥</span> NVIDIA NIM 聊天
+                    </a>
+                </div>
+
+                {% if role == 'admin' %}
+                <!-- 系统管理（仅管理员可见） -->
+                <div class="nav-group">
+                    <div class="nav-group-title" onclick="toggleGroup(this)">系统管理 <span class="arrow">▼</span></div>
+                    <a class="nav-item" data-href="/users-manage/" onclick="navigate(this, '人员管理')">
+                        <span class="nav-icon purple">👥</span> 人员管理
+                    </a>
+                    <a class="nav-item" data-href="/db-manage/" onclick="navigate(this, '数据库管理')">
+                        <span class="nav-icon blue">🗄</span> 数据库管理
+                    </a>
+                </div>
+                {% endif %}
+            </nav>
+            <div class="sidebar-footer">
+                <div style="font-size:0.7rem;color:var(--text-secondary);text-align:center;">
+                    AUTORUN &copy; 2026
+                </div>
+            </div>
+        </aside>
+
+        <!-- 侧边栏收起按钮 -->
+        <button class="sidebar-collapse-btn" id="sidebarCollapseBtn" onclick="toggleSidebarCollapse()" title="收起侧边栏">
+            <span class="arrow-icon">◀</span>
+        </button>
+
+        <!-- 右侧主体 -->
+        <div class="main-area">
+            <!-- 顶部栏 -->
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="menu-toggle" onclick="toggleSidebar()" title="菜单">☰</button>
+                    <div class="topbar-breadcrumb">
+                        首页 <span>/</span> <span id="currentPage">控制台</span>
+                    </div>
+                </div>
+                <div class="topbar-right">
+                    <div class="user-info">
+                        <div class="user-avatar">{{ username[:1]|upper }}</div>
+                        <div class="user-meta">
+                            <div style="display:flex;align-items:center;">
+                                <span class="user-name">{{ username }}</span>
+                                {% if role == 'admin' %}<span class="admin-badge-sm">管理员</span>{% endif %}
+                            </div>
+                            <span class="user-role">{{ role }}</span>
+                        </div>
+                    </div>
+                    <button class="btn-logout" onclick="location.href='/logout/'">退出登录</button>
+                </div>
+            </header>
+
+            <!-- 内容区 -->
+            <iframe class="content-frame" id="contentFrame" src="/dashboard-home/"></iframe>
+        </div>
+    </div>
+
+    <script>
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebarOverlay');
+        const currentPage = document.getElementById('currentPage');
+        const contentFrame = document.getElementById('contentFrame');
+
+        // 侧边栏分组折叠/展开
+        function toggleGroup(titleEl) {
+            var group = titleEl.parentElement;
+            group.classList.toggle('collapsed');
+            // 保存折叠状态到 localStorage
+            saveGroupState();
+        }
+
+        function saveGroupState() {
+            var groups = document.querySelectorAll('.nav-group');
+            var collapsed = [];
+            groups.forEach(function(g, i) {
+                if (g.classList.contains('collapsed')) {
+                    collapsed.push(i);
+                }
+            });
+            localStorage.setItem('sidebar-collapsed-groups', JSON.stringify(collapsed));
+        }
+
+        function restoreGroupState() {
+            var saved = localStorage.getItem('sidebar-collapsed-groups');
+            var groups = document.querySelectorAll('.nav-group');
+            if (saved) {
+                var collapsed = JSON.parse(saved);
+                collapsed.forEach(function(i) {
+                    if (groups[i]) groups[i].classList.add('collapsed');
+                });
+            } else {
+                // 首次加载：默认折叠除了"系统管理"之外的组
+                groups.forEach(function(g) {
+                    var title = g.querySelector('.nav-group-title');
+                    if (title && title.textContent.indexOf('系统管理') === -1) {
+                        g.classList.add('collapsed');
+                    }
+                });
+                saveGroupState();
+            }
+        }
+
+        // 页面加载时恢复折叠状态
+        restoreGroupState();
+
+        function toggleSidebar() {
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('show');
+        }
+
+        function closeSidebar() {
+            sidebar.classList.remove('open');
+            overlay.classList.remove('show');
+        }
+
+        // 桌面端侧边栏收起/展开
+        var sidebarCollapseBtn = document.getElementById('sidebarCollapseBtn');
+        var sidebarWidth = 240; // 与 CSS --sidebar-width 保持一致
+
+        function updateCollapseBtnPosition() {
+            var collapsed = sidebar.classList.contains('collapsed-sidebar');
+            sidebarCollapseBtn.style.left = collapsed ? '0px' : sidebarWidth + 'px';
+        }
+
+        function toggleSidebarCollapse() {
+            sidebar.classList.toggle('collapsed-sidebar');
+            localStorage.setItem('sidebar-collapsed', sidebar.classList.contains('collapsed-sidebar'));
+            updateCollapseBtnPosition();
+        }
+
+        // 页面加载时恢复侧边栏收起状态
+        (function() {
+            if (localStorage.getItem('sidebar-collapsed') === 'true') {
+                sidebar.classList.add('collapsed-sidebar');
+            }
+            updateCollapseBtnPosition();
+        })();
+
+        // 监听 sidebar 过渡结束，精确同步按钮位置
+        sidebar.addEventListener('transitionend', function(e) {
+            if (e.propertyName === 'width') {
+                updateCollapseBtnPosition();
+            }
+        });
+
+        // 向 iframe 注入深色滚动条样式
+        function injectScrollbarStyle(iframe) {
+            try {
+                var doc = iframe.contentDocument || iframe.contentWindow.document;
+                if (!doc || !doc.head) return;
+                // 避免重复注入
+                if (doc.getElementById('scrollbar-theme')) return;
+                var style = doc.createElement('style');
+                style.id = 'scrollbar-theme';
+                style.textContent = 
+                    '::-webkit-scrollbar{width:6px;height:6px}' +
+                    '::-webkit-scrollbar-track{background:transparent}' +
+                    '::-webkit-scrollbar-thumb{background:#30363d;border-radius:3px}' +
+                    '::-webkit-scrollbar-thumb:hover{background:#484f58}' +
+                    '*{scrollbar-width:thin;scrollbar-color:#30363d transparent}';
+                doc.head.appendChild(style);
+            } catch(e) {}
+        }
+
+        // iframe 每次加载完成时注入样式
+        contentFrame.addEventListener('load', function() {
+            injectScrollbarStyle(contentFrame);
+        });
+
+        // 页面初始化时也注入一次（默认加载的仪表盘）
+        window.addEventListener('DOMContentLoaded', function() {
+            contentFrame.addEventListener('load', function() {
+                injectScrollbarStyle(contentFrame);
+            });
+        });
+
+        function navigate(el, pageName) {
+            // 移除所有 active
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+            // 设置当前 active
+            el.classList.add('active');
+            // 更新面包屑
+            currentPage.textContent = pageName;
+            // 加载内容
+            const href = el.getAttribute('data-href');
+            if (href) {
+                contentFrame.src = href;
+            }
+            // 移动端关闭侧边栏
+            closeSidebar();
+        }
+
+        // 监听来自子页面的导航消息（仪表盘快捷入口）
+        window.addEventListener('message', function(e) {
+            if (e.data && e.data.type === 'navigate') {
+                var href = e.data.href;
+                var name = e.data.name;
+                // 找到对应菜单项并激活
+                var navItem = document.querySelector('.nav-item[data-href="' + href + '"]');
+                if (navItem) {
+                    navigate(navItem, name);
+                } else {
+                    // 菜单中没有匹配项，直接加载
+                    currentPage.textContent = name;
+                    contentFrame.src = href;
+                }
+            }
+        });
+
+        // 默认首页内容通过 iframe 加载，如果没有 /dashboard-home/ 路由，则用后端渲染的欢迎页
+        // 在 views.py 中添加 dashboard_home 视图
+    </script>
+</body>
+</html>

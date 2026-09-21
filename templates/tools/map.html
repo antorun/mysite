@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>50x50 网格</title>
+    <style>
+        body {
+            background-color: black;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(50, 10px);
+            grid-template-rows: repeat(50, 10px);
+            gap: 0;
+        }
+        .cell {
+            width: 10px;
+            height: 10px;
+        }
+        .type0 { background-color: black; }
+        .type1 { background-color: rgb(46, 44, 44); }
+        .type2 { background-color: rgb(24, 45, 24); }
+        /* 根据需要添加更多类型 */
+    </style>
+</head>
+<body>
+    <div id="grid" class="grid"></div>
+    <script>
+        const gridElement = document.getElementById('grid');
+
+        // 从服务器获取数据
+        fetch('http://127.0.0.1:8000/map_info/')
+            .then(response => response.json())
+            .then(data => {
+                console.log('Fetched data:', data); // 调试信息
+                let terrainData = data['terrain'][0]['terrain'];
+
+                // 将字符串转换为数组
+                terrainData = terrainData.split('');
+
+                if (terrainData.length !== 2500) {
+                    console.error('Error: terrainData length is not 2500');
+                    return;
+                }
+
+                terrainData.forEach(value => {
+                    const cell = document.createElement('div');
+                    cell.className = `cell type${value}`;
+                    gridElement.appendChild(cell);
+                });
+            })
+            .catch(error => console.error('Error:', error));
+    </script>
+</body>
+</html>
