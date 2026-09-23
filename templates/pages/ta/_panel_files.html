@@ -1,0 +1,29 @@
+  <section class="panel" id="tab-files">
+    <div class="card">
+      <div class="crumbs" id="fCrumbs"></div>
+      <div class="toolbar tb-1">
+        <input type="text" id="fPath" class="grow mono" placeholder="/data/data/com.termux/files/home"
+               autocapitalize="off" autocomplete="off" spellcheck="false">
+        <button class="btn pri" id="fGo">前往</button>
+      </div>
+      <div class="toolbar tb-4">
+        <button class="btn" id="fUp">↑ 上级</button>
+        <button class="btn" id="fHome">家目录</button>
+        <button class="btn" id="fHidden">隐藏: 关</button>
+        <button class="btn" id="fReload">刷新</button>
+      </div>
+      <div class="toolbar tb-2" style="margin-bottom:12px">
+        <button class="btn ok" id="fMkdir">＋ 新建文件夹</button>
+        <button class="btn ok" id="fMkfile">＋ 新建文件</button>
+        <button class="btn" id="fUploadBtn">↑ 上传</button>
+        <input type="file" id="fUpload" multiple style="display:none">
+        <button class="btn danger" id="fDelSel">删除选中</button>
+      </div>
+      <div class="c-dim" style="font-size:11px;margin-bottom:10px" id="fInfo"></div>
+      <div class="tw"><table><thead><tr>
+        <th style="width:30px"><input type="checkbox" id="fAll"></th>
+        <th>名称</th><th class="num">大小</th><th>修改时间</th>
+        <th class="num">权限</th><th class="act">操作</th></tr></thead>
+        <tbody id="fRows"><tr><td colspan="6" class="empty">加载中…</td></tr></tbody></table></div>
+    </div>
+  </section>

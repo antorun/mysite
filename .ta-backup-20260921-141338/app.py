@@ -1,6 +1,6 @@
 import os
 from flask import Flask, render_template
-from . import views, script, termux_admin
+from . import views, script
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -18,22 +18,6 @@ app.config['TEMPLATES_AUTO_RELOAD'] = True
 
 # 允许带 / 不带末尾斜杠都能匹配（兼容原 Django 路由行为）
 app.url_map.strict_slashes = False
-
-
-@app.after_request
-def _no_store_html(resp):
-    """HTML 页面禁止缓存。
-
-    这些页面是随时会迭代的内部工具，而 Flask 默认不给任何缓存指令，
-    浏览器（尤其手机端的第三方浏览器 / 运营商代理）就会自作主张地留住旧副本，
-    改版后打开仍是老界面，很难分辨是"没部署"还是"读了缓存"。
-    """
-    ctype = resp.headers.get('Content-Type', '')
-    if ctype.startswith('text/html'):
-        resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
-        resp.headers['Pragma'] = 'no-cache'
-        resp.headers['Expires'] = '0'
-    return resp
 
 
 def _add(rule, func, endpoint=None, methods=None):
@@ -126,43 +110,6 @@ _add('sw-proxy.js', views.sw_proxy_js)
 # 验证文件
 _add('fec01a7cfaea0fc836af1470864e1efe.txt', views.verfy, 'verfy')
 _add('.well-known/pki-validation/8897263DE544448583DF473226CE4FCB.txt', views.verfy2, 'verfy2')
-
-
-# ============ Termux 管理控制台（入口 /index） ============
-# 页面本身不校验令牌；/index/api/* 全部需要令牌或已登录会话。
-_add('index', termux_admin.index_page, 'termux_admin')
-_add('index/health', termux_admin.api_health)
-_add('index/api/overview', termux_admin.api_overview)
-_add('index/api/processes', termux_admin.api_processes)
-_add('index/api/process/kill', termux_admin.api_process_kill)
-_add('index/api/services', termux_admin.api_services)
-_add('index/api/services/action', termux_admin.api_service_action)
-_add('index/api/services/log', termux_admin.api_service_log)
-_add('index/api/fs/list', termux_admin.api_fs_list)
-_add('index/api/fs/read', termux_admin.api_fs_read)
-_add('index/api/fs/write', termux_admin.api_fs_write)
-_add('index/api/fs/mkdir', termux_admin.api_fs_mkdir)
-_add('index/api/fs/mkfile', termux_admin.api_fs_mkfile)
-_add('index/api/fs/rename', termux_admin.api_fs_rename)
-_add('index/api/fs/copy', termux_admin.api_fs_copy)
-_add('index/api/fs/delete', termux_admin.api_fs_delete)
-_add('index/api/fs/chmod', termux_admin.api_fs_chmod)
-_add('index/api/fs/pack', termux_admin.api_fs_pack)
-_add('index/api/fs/unpack', termux_admin.api_fs_unpack)
-_add('index/api/fs/upload', termux_admin.api_fs_upload)
-_add('index/api/fs/download', termux_admin.api_fs_download)
-# 内联预览（图片 / 视频 / 音频 / PDF）。支持 Range，视频才能拖动进度条。
-_add('index/api/fs/inline', termux_admin.api_fs_inline)
-_add('index/api/exec', termux_admin.api_exec)
-_add('index/api/presets', termux_admin.api_presets)
-
-# 传感器（Termux:API）。采样会真唤醒硬件，所以后端对帧数 / 路数 / 总时长都上了护栏，
-# 前端实时模式默认关闭、切页自动停，并提供 cleanup 释放传感器资源。
-_add('index/api/sensors', termux_admin.api_sensors)
-_add('index/api/sensors/read', termux_admin.api_sensors_read)
-_add('index/api/sensors/env', termux_admin.api_sensors_env)
-_add('index/api/sensors/preview', termux_admin.api_sensors_preview)
-_add('index/api/sensors/cleanup', termux_admin.api_sensors_cleanup)
 
 
 @app.errorhandler(500)

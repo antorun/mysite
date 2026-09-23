@@ -1,0 +1,88 @@
+/* ---------------- 服务 ---------------- */
+function stateTag(s){
+  if(s === 'up') return '<span class="tag up">运行中</span>';
+  if(s === 'down') return '<span class="tag down">已停止</span>';
+  if(s === 'fail') return '<span class="tag fail">失败</span>';
+  return '<span class="tag off">' + esc(s) + '</span>';
+}
+function svcBtn(name, action, label, cls){
+  return '<button class="btn ' + (cls||'') + '" data-svc="' + esc(name) + '" data-act="'
+    + action + '">' + label + '</button>';
+}
+function loadServices(){
+  api('/index/api/services').then(function(d){
+    if(!d || d.status !== 'ok'){ flash((d && d.message) || '读取失败', 'err'); return; }
+    $('svDir').textContent = d.svdir || '';
+    var list = d.services || [];
+    $('svRows').innerHTML = list.length ? list.map(function(s){
+      return '<tr><td class="c-main m-full"><b>' + esc(s.name) + '</b></td>'
+        + '<td data-label="状态">' + stateTag(s.state) + '</td>'
+        + '<td class="num mono" data-label="PID">' + (s.pid || '-') + '</td>'
+        + '<td class="num" data-label="运行">' + (s.age == null ? '-' : s.age + 's') + '</td>'
+        + '<td data-label="开机">' + (s.autostart ? '<span class="tag on">自启</span>' : '<span class="tag off">手动</span>') + '</td>'
+        + '<td class="act m-full">'
+        + svcBtn(s.name, 'start', '启动', 'ok')
+        + svcBtn(s.name, 'stop', '停止')
+        + svcBtn(s.name, 'restart', '重启')
+        + svcBtn(s.name, 'log', '日志')
+        + '</td></tr>';
+    }).join('') : '<tr><td colspan="6" class="empty">未发现 runit 服务</td></tr>';
+
+    var sel = $('logSvc'), keep = sel.value;
+    sel.innerHTML = list.map(function(s){
+      return '<option value="' + esc(s.name) + '">' + esc(s.name) + '</option>';
+    }).join('');
+    if(keep) sel.value = keep;
+  }).catch(function(e){ flash(String(e.message || e), 'err'); });
+}
+$('svReload').addEventListener('click', loadServices);
+
+$('svRows').addEventListener('click', function(e){
+  var b = e.target.closest('button[data-svc]');
+  if(!b) return;
+  var name = b.getAttribute('data-svc'), act = b.getAttribute('data-act');
+  if(act === 'log'){
+    $('logSvc').value = name;
+    switchTab('services');
+    loadServiceLog();
+    return;
+  }
+  var tip = act === 'stop' ? ('确认停止服务 ' + name + ' ？') : null;
+  if(tip && !confirm(tip)) return;
+  b.disabled = true;
+  var old = b.textContent;
+  b.textContent = '…';
+  apiJson('/index/api/services/action', {name: name, action: act}).then(function(r){
+    b.disabled = false; b.textContent = old;
+    if(r && r.status === 'ok'){
+      flash(name + ' ' + act + ' → ' + r.state, r.state === 'up' ? 'ok' : '');
+      loadServices();
+    } else {
+      flash((r && r.message) || '操作失败', 'err');
+    }
+  }).catch(function(e){ b.disabled = false; b.textContent = old; flash(String(e.message || e), 'err'); });
+});
+
+var logTimer = null;
+function loadServiceLog(){
+  var name = $('logSvc').value;
+  if(!name) return;
+  var lines = $('logLines').value || 200;
+  api('/index/api/services/log?name=' + encodeURIComponent(name) + '&lines=' + encodeURIComponent(lines))
+    .then(function(d){
+      if(!d) return;
+      var head = d.path ? ('# ' + d.path + '  (' + (d.size_h || '') + ')\n\n') : '';
+      if(d.status !== 'ok' && d.message && !(d.lines||[]).length){
+        $('svLog').textContent = d.message;
+        return;
+      }
+      if(d.message && !(d.lines||[]).length){ $('svLog').textContent = d.message; return; }
+      $('svLog').textContent = head + (d.lines || []).join('\n') || '(日志为空)';
+      $('svLog').scrollTop = $('svLog').scrollHeight;
+    }).catch(function(e){ $('svLog').textContent = String(e.message || e); });
+}
+$('logLoad').addEventListener('click', loadServiceLog);
+$('logAuto').addEventListener('click', function(){
+  if(logTimer){ clearInterval(logTimer); logTimer = null; this.textContent = '自动: 关'; this.classList.remove('on'); }
+  else { logTimer = setInterval(loadServiceLog, 4000); this.textContent = '自动: 开'; this.classList.add('on'); loadServiceLog(); }
+});

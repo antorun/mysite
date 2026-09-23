@@ -1,0 +1,51 @@
+  <section class="panel active" id="tab-overview">
+    <div class="grid g4" style="margin-bottom:13px">
+      <div class="stat st-blue"><div class="lbl">CPU 活跃度 <span style="opacity:.5;cursor:help;font-weight:400" title="Android 下 /proc/stat 不可读，改为两次采样内核 cpufreq 频率计数器：全程停在最低频=0%，跑满最高频=100%。悬停数值看每簇明细。">ⓘ</span></div>
+        <div class="val c-blue" id="ovCpu">--</div>
+        <div class="bar bar-fill-blue"><i id="ovCpuBar" style="width:0%"></i></div>
+        <div class="desc" id="ovCpuDesc">--</div></div>
+      <div class="stat st-purple"><div class="lbl">内存</div>
+        <div class="val c-purple" id="ovMem">--</div>
+        <div class="bar bar-fill-blue"><i id="ovMemBar" style="width:0%"></i></div>
+        <div class="desc" id="ovMemDesc">--</div></div>
+      <div class="stat st-green"><div class="lbl">存储</div>
+        <div class="val c-green" id="ovDisk">--</div>
+        <div class="bar bar-fill-green"><i id="ovDiskBar" style="width:0%"></i></div>
+        <div class="desc" id="ovDiskDesc">--</div></div>
+      <div class="stat st-orange"><div class="lbl">电池</div>
+        <div class="val c-orange" id="ovBat">--</div>
+        <div class="bar bar-fill-orange"><i id="ovBatBar" style="width:0%"></i></div>
+        <div class="desc" id="ovBatDesc">--</div></div>
+    </div>
+
+    <div class="grid g2">
+      <div class="card">
+        <div class="card-h"><span class="t">系统信息</span></div>
+        <dl class="kv" id="ovSys"></dl>
+      </div>
+      <div class="card span2">
+        <div class="card-h"><span class="t">温度</span><span class="spacer"></span>
+          <span class="c-dim" id="ovTempN" style="font-size:11px"></span></div>
+        <div class="grid g4" id="ovTempGroups" style="margin-bottom:11px"></div>
+        <div class="term-grid" id="ovTempZones"></div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="t">网络</span></div>
+        <dl class="kv" id="ovNet"></dl>
+      </div>
+      <div class="card span2 wide-full">
+        <div class="card-h"><span class="t">磁盘挂载</span><span class="spacer"></span>
+          <button class="btn" id="btnDeep">含目录占用</button></div>
+        <div class="tw"><table><thead><tr>
+          <th>挂载点</th><th class="num">容量</th><th class="num">已用</th>
+          <th class="num">可用</th><th class="num">占比</th></tr></thead>
+          <tbody id="ovDiskRows"></tbody></table></div>
+        <div id="ovDu" style="margin-top:11px"></div>
+      </div>
+      <div class="card" style="grid-column:1/-1">
+        <div class="card-h"><span class="t">服务概览</span><span class="spacer"></span>
+          <span class="c-dim" style="font-size:11px" id="ovSvcN"></span></div>
+        <div class="row" id="ovSvcList"></div>
+      </div>
+    </div>
+  </section>

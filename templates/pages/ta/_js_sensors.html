@@ -1,0 +1,589 @@
+/* ---------------- 传感器：体检 / 采样 / 曲线 / 分类清单 ---------------- */
+var SE_COLORS = ['#58a6ff', '#3fb950', '#e3a008', '#a371f7', '#f85149', '#79c0ff',
+                 '#db6d28', '#56d364'];
+var SE_MAX_POINTS = 240;
+
+var seState = {
+  sensors: [], picks: [], groups: [], limits: {},
+  cur: '', curName: '', label: '', unit: '',
+  buf: [], timer: null, loaded: false, res: {}
+};
+
+function seCls(level){
+  return level === 'warn' ? 'c-orange' : (level === 'err' ? 'c-red' : '');
+}
+function seNoteCls(level){
+  return 'lv-' + (level || 'info');
+}
+function seFmt(v){
+  if(v === null || v === undefined || v === '' || !isFinite(v)) return '—';
+  var a = Math.abs(v);
+  if(a === 0) return '0';
+  if(a >= 10000) return v.toFixed(0);
+  if(a >= 1000) return v.toFixed(1);
+  if(a >= 100) return v.toFixed(2);
+  if(a >= 1) return v.toFixed(3);
+  if(a >= 0.01) return v.toFixed(4);
+  return v.toExponential(1);
+}
+function seInt(id, lo, hi, def){
+  var v = parseInt($(id).value, 10);
+  if(isNaN(v)) v = def;
+  v = Math.max(lo, Math.min(hi, v));
+  $(id).value = v;
+  return v;
+}
+
+/* ---------------- 清单 ---------------- */
+function loadSensors(force){
+  $('seRows').innerHTML = skel(6);
+  $('seHint').textContent = '正在读取传感器列表…';
+  api('/index/api/sensors' + (force ? '?refresh=1' : '')).then(function(d){
+    if(!d || d.status !== 'ok'){
+      $('seRows').innerHTML = '<tr><td colspan="6" class="empty">'
+        + esc((d && d.message) || '读取失败') + '</td></tr>';
+      $('seHint').textContent = (d && d.message) || '读取失败';
+      return;
+    }
+    seState.sensors = d.sensors || [];
+    seState.picks = d.picks || [];
+    seState.groups = d.groups || [];
+    seState.limits = d.limits || {};
+    seState.loaded = true;
+    seFillPickers();
+    seRenderRows();
+    if(current === 'sensors') seAutoEnter();   /* 名单就绪 → 自动体检 + 持续采集 */
+    var l = seState.limits;
+    $('seHint').innerHTML = '共 <b>' + d.total + '</b> 个传感器（'
+      + seState.groups.map(function(g){ return esc(g.label) + ' ' + g.count; }).join(' · ')
+      + '）· 单次上限 ' + (l.max_pick || 12) + ' 路 / ' + (l.max_frames || 120)
+      + ' 帧 · 帧间隔 ≥50ms。事件型传感器平时读不到值是正常的，'
+      + '它们只在事件触发时才上报。';
+  }).catch(function(e){
+    $('seRows').innerHTML = '<tr><td colspan="6" class="empty">'
+      + esc(String(e.message || e)) + '</td></tr>';
+  });
+}
+
+function seFillPickers(){
+  var h = '';
+  if(seState.picks.length){
+    h += '<optgroup label="常用物理量（推荐）">';
+    seState.picks.forEach(function(p){
+      h += '<option value="' + esc(p.kind) + '">' + esc(p.label) + ' — '
+        + esc(p.name) + '</option>';
+    });
+    h += '</optgroup>';
+  }
+  var byG = {};
+  seState.sensors.forEach(function(s){
+    var k = s.group_label || s.group;
+    (byG[k] = byG[k] || []).push(s);
+  });
+  Object.keys(byG).forEach(function(g){
+    h += '<optgroup label="' + esc(g) + '">';
+    byG[g].forEach(function(s){
+      h += '<option value="' + esc(s.name) + '">' + esc(s.name)
+        + (s.event ? '（事件型）' : '') + '</option>';
+    });
+    h += '</optgroup>';
+  });
+  var sel = $('sePick');
+  sel.innerHTML = h;
+  if(seState.cur){
+    sel.value = seState.cur;
+    if(sel.value !== seState.cur){          /* 该值不在选项里，退回第一项 */
+      sel.selectedIndex = 0;
+      seState.cur = sel.value;
+    }
+  } else {
+    sel.selectedIndex = 0;
+    seState.cur = sel.value;
+  }
+
+  var gs = $('seGroup');
+  gs.innerHTML = '<option value="">全部分组</option>' + seState.groups.map(function(g){
+    return '<option value="' + esc(g.key) + '">' + esc(g.label) + '（' + g.count + '）</option>';
+  }).join('');
+}
+
+function seRenderRows(){
+  if(!seState.loaded) return;
+  var q = ($('seSearch').value || '').trim().toLowerCase();
+  var g = $('seGroup').value;
+  var list = seState.sensors.filter(function(s){
+    if(g && s.group !== g) return false;
+    if(!q) return true;
+    return (s.name + ' ' + s.label + ' ' + s.kind + ' ' + s.group_label)
+      .toLowerCase().indexOf(q) >= 0;
+  });
+  if(!list.length){
+    $('seRows').innerHTML = '<tr><td colspan="6" class="empty">没有匹配的传感器</td></tr>';
+    return;
+  }
+  $('seRows').innerHTML = list.map(function(s){
+    var a = seState.res[s.name];
+    var latest = '—';
+    if(a){
+      var lv = a.latest || [];
+      /* 16 通道的传感器全铺开会占四五行，只给前 6 个 + 总数 */
+      latest = lv.slice(0, 6).map(seFmt).join(' / ')
+        + (lv.length > 6 ? ' …（共 ' + lv.length + ' 通道）' : '');
+    }
+    return '<tr>'
+      + '<td class="c-main m-full mono">' + esc(s.name) + '</td>'
+      + '<td data-label="物理量">' + esc(s.label) + '</td>'
+      + '<td data-label="分组">' + esc(s.group_label) + '</td>'
+      + '<td class="num" data-label="通道">' + (a ? a.channels : '—') + '</td>'
+      + '<td class="num mono" data-label="最新值">' + esc(latest || '—') + '</td>'
+      + '<td class="act">'
+      + '<button class="btn" type="button" data-se="' + esc(s.name) + '">采样</button>'
+      + '<button class="btn" type="button" data-sepick="' + esc(s.name) + '">看曲线</button>'
+      + '</td></tr>';
+  }).join('');
+  Array.prototype.forEach.call($('seRows').querySelectorAll('[data-se]'), function(b){
+    b.addEventListener('click', function(){ seJump(b.getAttribute('data-se')); });
+  });
+  Array.prototype.forEach.call($('seRows').querySelectorAll('[data-sepick]'), function(b){
+    b.addEventListener('click', function(){ sePickAs(b.getAttribute('data-sepick')); });
+  });
+}
+
+function sePickAs(name){
+  var sel = $('sePick');
+  var hit = false;
+  Array.prototype.forEach.call(sel.options, function(o){
+    if(o.value === name) hit = true;
+  });
+  if(!hit){
+    var op = document.createElement('option');
+    op.value = name;
+    op.textContent = name;
+    sel.appendChild(op);
+  }
+  sel.value = name;
+  seState.cur = name;
+  seClearCurve();
+}
+function seJump(name){
+  sePickAs(name);
+  seRunSample();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+/* ---------------- 采样 ---------------- */
+function seClearCurve(){
+  seState.buf = [];
+  seState.label = '';
+  seState.unit = '';
+  seDraw();
+}
+
+function seParams(){
+  var l = seState.limits || {};
+  var n = seInt('seN', 1, l.max_frames || 120, 24);
+  var d = seInt('seD', 50, 2000, 100);
+  var span = l.max_span_ms || 30000;
+  if(n * d > span){ d = Math.max(50, Math.floor(span / n)); $('seD').value = d; }
+  return {n: n, d: d};
+}
+
+function seRunSample(){
+  var s = $('sePick').value;
+  if(!s) return;
+  seState.cur = s;
+  var p = seParams();
+  var url = '/index/api/sensors/read?s=' + encodeURIComponent(s)
+    + '&n=' + p.n + '&d=' + p.d;
+  $('seOnce').disabled = true;
+  api(url).then(function(r){
+    $('seOnce').disabled = false;
+    if(!r || r.status !== 'ok'){
+      flash((r && r.message) || '采样失败', 'err');
+      return;
+    }
+    seAbsorb(r, true);
+  }).catch(function(e){
+    $('seOnce').disabled = false;
+    flash(String(e.message || e), 'err');
+  });
+}
+
+function seAbsorb(r, reset){
+  var list = r.analyses || [];
+  if(!list.length){ flash('没有返回任何传感器数据', 'err'); return; }
+  list.forEach(function(a){
+    if(!a.silent) seState.res[a.name] = a;
+  });
+  var main = list[0];
+  /* 曲线只画主选的这一路；其余作为「同批采到的其它物理量」展示 */
+  if(reset){
+    seState.buf = [];
+    seState.label = main.label;
+    seState.unit = main.unit;
+    seState.curName = main.name;
+  }
+  (main.series || []).forEach(function(col, i){
+    if(!seState.buf[i]) seState.buf[i] = [];
+    seState.buf[i] = seState.buf[i].concat(col);
+  });
+  var maxLen = SE_MAX_POINTS;
+  seState.buf.forEach(function(c){
+    if(c.length > maxLen) c.splice(0, c.length - maxLen);
+  });
+
+  $('seMeta').innerHTML = '<b>' + main.name + '</b><br>' + main.samples
+    + ' 帧 × ' + (r.delay_ms || 0) + 'ms · ' + (r.elapsed_ms || 0) + 'ms 往返'
+    + (r.missing && r.missing.length ? ' · 未识别：' + esc(r.missing.join('、')) : '');
+  seMetrics(main);
+  seNotes(main);
+  seRelated(list);
+  seDraw();
+  seRenderRows();
+  if(main.silent){
+    flash('这个传感器本次没有上报数据（事件型传感器常态）', 'err');
+  }
+}
+
+function seMetrics(a){
+  $('seMetricWho').textContent = a.name + (a.channels ? ' · ' + a.channels + ' 通道'
+    + (a.samples ? ' · ' + a.samples + ' 帧' : '') : '');
+  var rows = (a.metrics || []).map(function(m){
+    return '<tr><td class="c-main m-full">' + esc(m.label) + '</td>'
+      + '<td class="num ' + seCls(m.level) + '" data-label="数值">' + esc(m.value)
+      + (m.unit ? ' <span class="c-dim">' + esc(m.unit) + '</span>' : '') + '</td>'
+      + '<td class="c-dim" data-label="说明">' + esc(m.hint || '—') + '</td></tr>';
+  }).join('');
+  $('seMetricRows').innerHTML = rows
+    || '<tr><td colspan="3" class="empty">该传感器没有产出可换算的指标</td></tr>';
+}
+
+function seNotes(a){
+  var h = (a.notes || []).map(function(n){
+    return '<div class="se-note ' + seNoteCls(n.level) + '"><i></i><span>'
+      + esc(n.text) + '</span></div>';
+  }).join('');
+  $('seNotes').innerHTML = h || '<div class="empty">—</div>';
+}
+
+function seRelated(list){
+  var others = list.slice(1);
+  if(!others.length){ $('seRelCard').style.display = 'none'; return; }
+  $('seRelCard').style.display = '';
+  $('seRel').innerHTML = others.map(function(a){
+    if(a.silent){
+      return '<div class="se-relcard dim"><div class="se-relh">' + esc(a.label)
+        + '</div><div class="se-rell c-dim">本次未上报</div>'
+        + '<div class="se-reln">' + esc((a.notes[0] || {}).text || '') + '</div></div>';
+    }
+    var ms = (a.metrics || []).slice(0, 4).map(function(m){
+      return '<div class="se-relk"><span>' + esc(m.label) + '</span><b class="'
+        + seCls(m.level) + '">' + esc(m.value)
+        + (m.unit ? ' <i>' + esc(m.unit) + '</i>' : '') + '</b></div>';
+    }).join('');
+    return '<div class="se-relcard"><div class="se-relh">' + esc(a.label)
+      + ' <span class="c-dim mono">' + esc(a.name) + '</span></div>'
+      + ms + '</div>';
+  }).join('');
+}
+
+/* ---------------- 体检 ---------------- */
+function loadSensorEnv(){
+  $('seEnvLoad').disabled = true;
+  $('seVerdictText').textContent = '正在一起读取运动 / 环境 / 电源传感器…';
+  return api('/index/api/sensors/env').then(function(d){
+    $('seEnvLoad').disabled = false;
+    if(!d || d.status !== 'ok'){
+      $('seVerdictText').textContent = (d && d.message) || '检测失败';
+      flash((d && d.message) || '检测失败', 'err');
+      return;
+    }
+    var fs = d.findings || [];
+    var worst = fs.some(function(f){ return f.level === 'err'; }) ? 'err'
+      : (fs.some(function(f){ return f.level === 'warn'; }) ? 'warn' : 'ok');
+    var box = $('seVerdictBox');
+    box.className = 'se-verdict v-' + worst;
+    $('seVerdictIcon').textContent = worst === 'err' ? '✕' : (worst === 'warn' ? '!' : '✓');
+    $('seVerdictText').textContent = d.verdict || '—';
+
+    $('seChips').innerHTML = (d.chips || []).map(function(c){
+      return '<div class="se-chip ' + seNoteCls(c.level) + '" title="'
+        + esc(c.label + '：' + c.value) + '"><span>' + esc(c.label) + '</span><b>'
+        + esc(c.value) + '</b></div>';
+    }).join('');
+
+    // 所有结论都是「异常才报」，设备健康且静止时会是空数组。
+    // 空着会让整张卡片看起来像坏了（空态必须自己解释自己），所以补一条正面结论。
+    if(!fs.length){
+      $('seFindings').innerHTML = '<div class="se-find ' + seNoteCls('ok') + '">'
+        + '<div class="se-findh">未发现异常</div>'
+        + '<div class="se-findb">姿态、运动、朝向、磁场、光照、遮挡、电量与温度各项都在正常'
+        + '范围内，无需处理。下面是换算后的各项读数。</div></div>';
+    }else{
+      $('seFindings').innerHTML = fs.map(function(f){
+        return '<div class="se-find ' + seNoteCls(f.level) + '">'
+          + '<div class="se-findh">' + esc(f.title) + '</div>'
+          + '<div class="se-findb">' + esc(f.detail) + '</div></div>';
+      }).join('');
+    }
+
+    var soc = d.soc || {};
+    var socTxt = soc.max === null || soc.max === undefined ? ''
+      : '· SoC 最高 ' + soc.max + '°C ';
+    $('seEnvFoot').innerHTML = '采样 ' + (d.frames || 0) + ' 帧 × ' + (d.delay_ms || 0)
+      + 'ms，往返 ' + (d.elapsed_ms || 0) + 'ms · 采到数据 ' + (d.sampled || []).length
+      + ' 路，无上报 ' + (d.silent || []).length + ' 路 ' + esc(socTxt)
+      + (d.error ? '· 采集告警：' + esc(d.error) : '');
+
+    (d.analyses || []).forEach(function(a){
+      if(!a.silent) seState.res[a.name] = a;
+    });
+    seRenderRows();
+    $('seEnvLoad').textContent = '重新检测';
+    flash('体检完成', 'ok');
+  }).catch(function(e){
+    $('seEnvLoad').disabled = false;
+    $('seVerdictText').textContent = String(e.message || e);
+    flash(String(e.message || e), 'err');
+  });
+}
+
+/* ---------------- 曲线绘制 ---------------- */
+function seDraw(){
+  var cv = $('seCanvas');
+  if(!cv) return;
+  var wrap = cv.parentNode;
+  var W = Math.max(220, wrap.clientWidth - 2);
+  var H = cv.clientHeight || 210;
+  var dpr = window.devicePixelRatio || 1;
+  var pw = Math.round(W * dpr), ph = Math.round(H * dpr);
+  if(cv.width !== pw || cv.height !== ph){ cv.width = pw; cv.height = ph; }
+  var g = cv.getContext('2d');
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, W, H);
+
+  var cols = seState.buf.filter(function(c){ return c && c.length; });
+  $('seCvEmpty').style.display = cols.length ? 'none' : 'flex';
+  if(!cols.length){ $('seLegend').innerHTML = ''; return; }
+
+  var padL = 50, padR = 12, padT = 12, padB = 20;
+  var len = 0;
+  cols.forEach(function(c){ if(c.length > len) len = c.length; });
+  var min = Infinity, max = -Infinity;
+  cols.forEach(function(c){
+    c.forEach(function(v){
+      if(typeof v !== 'number' || !isFinite(v)) return;
+      if(v < min) min = v;
+      if(v > max) max = v;
+    });
+  });
+  if(!isFinite(min) || !isFinite(max)) return;
+  if(max - min < 1e-9){ min -= 0.5; max += 0.5; }
+  var pd = (max - min) * 0.12;
+  min -= pd; max += pd;
+
+  function X(i){ return padL + (len <= 1 ? 0 : i * (W - padL - padR) / (len - 1)); }
+  function Y(v){ return padT + (max - v) / (max - min) * (H - padT - padB); }
+
+  g.font = '10px ui-monospace,SFMono-Regular,Menlo,monospace';
+  g.textAlign = 'right';
+  g.textBaseline = 'middle';
+  for(var k = 0; k <= 4; k++){
+    var vv = max - (max - min) * k / 4;
+    var yy = Math.round(Y(vv)) + .5;
+    g.strokeStyle = 'rgba(255,255,255,.07)';
+    g.lineWidth = 1;
+    g.beginPath(); g.moveTo(padL, yy); g.lineTo(W - padR, yy); g.stroke();
+    g.fillStyle = '#63707f';
+    g.fillText(seFmt(vv), padL - 7, yy);
+  }
+
+  var meta = seState.buf;
+  var drawn = 0;
+  meta.forEach(function(c, ci){
+    if(!c || !c.length) return;
+    var color = SE_COLORS[ci % SE_COLORS.length];
+    var off = len - c.length;
+    g.strokeStyle = color;
+    g.lineWidth = ci === 0 ? 1.9 : 1.4;
+    g.beginPath();
+    for(var i = 0; i < c.length; i++){
+      var v = typeof c[i] === 'number' ? c[i] : 0;
+      var x = X(off + i), y = Y(v);
+      if(i === 0) g.moveTo(x, y); else g.lineTo(x, y);
+    }
+    g.stroke();
+    g.fillStyle = color;
+    g.beginPath();
+    g.arc(X(off + c.length - 1), Y(c[c.length - 1] || 0), 2.6, 0, Math.PI * 2);
+    g.fill();
+    drawn++;
+  });
+
+  var lg = '<span class="se-lg se-lg-t">' + esc(seState.label || '')
+    + (seState.unit ? ' · ' + esc(seState.unit) : '') + '</span>';
+  var shown = 0;
+  meta.forEach(function(c, ci){
+    if(!c || !c.length) return;
+    var v = c[c.length - 1];
+    lg += '<span class="se-lg"><i style="background:'
+      + SE_COLORS[ci % SE_COLORS.length] + '"></i>通道 ' + ci
+      + ' <b>' + esc(seFmt(v)) + '</b></span>';
+    shown++;
+  });
+  $('seLegend').innerHTML = shown > 1 ? lg : '';
+  if(shown === 1){
+    $('seLegend').innerHTML = lg.replace('通道 0 <b>', '当前值 <b>');
+  }
+}
+
+/* ---------------- 节能持续采集 ----------------
+   取代原来的「实时」开关。原来每 2.4s 采 24 帧 × 100ms：采样窗口正好把 2.4s 占满，
+   等于传感器 HAL 一直开着（≈100% 占空比），这是真正耗电的大头。
+   现在每次只取 1 帧（d=50ms），一轮的硬件唤醒时间从 2.4s 降到 ~50ms；再按「数值有没有变」
+   自适应退避：静止 → 间隔 ×1.6 逐级拉到 15s，一有变化 → 立刻回到 3s。
+   用 setTimeout 自调度而不是 setInterval：请求天然串行，不会在设备慢的时候堆叠。 */
+var SE_ECO_MIN = 3000, SE_ECO_MAX = 15000, SE_ECO_FACTOR = 1.6;
+var seEco = { on: false, auto: true, envDone: false, timer: null, cur: SE_ECO_MIN,
+              quiet: 0, lastKey: '' };
+
+function seEcoRender(mode, text){
+  var el = $('seEcoState');
+  if(!el) return;
+  el.className = 'se-eco' + (mode ? ' ' + mode : '');
+  var b = el.querySelector('b');
+  if(b) b.textContent = text || '—';
+  var lv = $('seLive');
+  if(lv){
+    lv.classList.toggle('on', !!seEco.on);
+    lv.textContent = '持续 ' + (seEco.on ? '开' : '关');
+  }
+}
+function seEcoSecs(){ return Math.round(seEco.cur / 1000); }
+function seEcoStatus(){
+  if(!seEco.on) return;
+  seEcoRender('on', '持续采集中 · 每 ' + seEcoSecs() + ' 秒'
+    + (seEco.cur > SE_ECO_MIN ? '（数值静止，已降频）' : ''));
+}
+/* 数值指纹：判断这一轮读到的和上一轮是不是同一个值 */
+function seEcoKey(main){
+  var s = (main.series || []).map(function(c){
+    return (c && c.length) ? String(c[c.length - 1]) : '';
+  }).join(',');
+  return s || 'empty';
+}
+function seEcoGrow(){
+  seEco.cur = Math.min(SE_ECO_MAX, Math.round(seEco.cur * SE_ECO_FACTOR));
+  seEco.quiet++;
+}
+function seStartEco(){
+  if(seEco.on) return true;
+  if(current !== 'sensors') return false;          /* 不在本页就别采，省电 */
+  if(!$('sePick') || !$('sePick').value) return false;
+  seEco.on = true;
+  seEco.cur = SE_ECO_MIN;
+  seEco.quiet = 0;
+  seEco.lastKey = '';
+  seEcoStatus();
+  seEcoLoop();
+  return true;
+}
+function seStopEco(cleanup){
+  var was = seEco.on;
+  seEco.on = false;
+  if(seEco.timer){ clearTimeout(seEco.timer); seEco.timer = null; }
+  seEcoRender('paused', '已暂停');
+  /* cleanup 会跑 termux-sensor -c 释放 HAL：只在真正离开本页时做，
+     页面切后台/切回不释放（否则每次回来都要重新注册传感器，反而更费电） */
+  if(cleanup && was) api('/index/api/sensors/cleanup').catch(function(){});
+}
+function stopSensorLive(){ seStopEco(true); }
+function seToggleLive(){
+  if(seEco.on){
+    seEco.auto = false;                            /* 手动关了就不再自动拉起 */
+    seStopEco(true);
+    flash('持续采集已停止', 'ok');
+    return;
+  }
+  seEco.auto = true;
+  if(seStartEco()) flash('持续采集已开启：节能节奏，离开本页自动暂停', 'ok');
+  else flash('请先选择传感器', 'err');
+}
+function seEcoLoop(){
+  if(!seEco.on) return;
+  if(document.hidden) return;                      /* 交给 visibilitychange 唤醒，别空转 */
+  var s = $('sePick') && $('sePick').value;
+  if(!s){ seStopEco(false); return; }
+  api('/index/api/sensors/read?s=' + encodeURIComponent(s) + '&n=1&d=50')
+    .then(function(r){
+      if(!seEco.on) return;
+      if(!r || r.status !== 'ok') throw new Error((r && r.message) || '采样失败');
+      var main = (r.analyses || [])[0];
+      if(!main) throw new Error('没有返回数据');
+      seAbsorb(r, !seState.buf.length);
+      var key = seEcoKey(main);
+      if(key === seEco.lastKey){
+        seEcoGrow();                               /* 一点没变 → 降频 */
+      } else {
+        seEco.cur = SE_ECO_MIN;                    /* 有变化 → 回到最快 */
+        seEco.quiet = 0;
+      }
+      seEco.lastKey = key;
+      seEcoStatus();
+      seEco.timer = setTimeout(seEcoLoop, seEco.cur);
+    })
+    .catch(function(e){
+      if(!seEco.on) return;
+      seEcoRender('err', '采样失败，稍后重试');
+      seEco.timer = setTimeout(seEcoLoop, Math.max(SE_ECO_MIN, 6000));
+    });
+}
+/* 页面隐藏就停（省电），回到前台立刻续上 */
+document.addEventListener('visibilitychange', function(){
+  if(!seEco.on) return;
+  if(document.hidden){
+    if(seEco.timer){ clearTimeout(seEco.timer); seEco.timer = null; }
+    seEcoRender('paused', '后台已暂停（省电）');
+  } else {
+    seEcoStatus();
+    seEcoLoop();
+  }
+});
+/* 进入传感器页时调用：首次自动体检一次，然后拉起持续采集 */
+function seAutoEnter(){
+  if(current !== 'sensors') return;
+  if(!seState.loaded){ loadSensors(); return; }    /* loadSensors 完成后会再叫我一次 */
+  if(!seEco.envDone){
+    seEco.envDone = true;
+    loadSensorEnv().then(function(){ if(seEco.auto) seStartEco(); });
+    return;
+  }
+  if(!seEco.on && seEco.auto) seStartEco();
+}
+
+/* ---------------- 绑定 ---------------- */
+$('seEnvLoad').addEventListener('click', loadSensorEnv);
+$('seOnce').addEventListener('click', seRunSample);
+$('seLive').addEventListener('click', seToggleLive);
+$('seReload').addEventListener('click', function(){ loadSensors(true); });
+$('sePick').addEventListener('change', function(){
+  seState.cur = this.value;
+  seClearCurve();
+});
+$('seN').addEventListener('change', function(){ seParams(); });
+$('seD').addEventListener('change', function(){ seParams(); });
+$('seSearch').addEventListener('input', seRenderRows);
+$('seGroup').addEventListener('change', seRenderRows);
+seEcoRender('paused', '待机');          /* 初始状态灯：进页后由 seAutoEnter 拉起 */
+$('seCsv').addEventListener('click', function(){
+  var p = seParams();
+  var url = '/index/api/sensors/read?s=' + encodeURIComponent($('sePick').value)
+    + '&n=' + p.n + '&d=' + p.d + '&fmt=csv';
+  window.location.href = dl(url);
+});
+
+var seRzT = null;
+window.addEventListener('resize', function(){
+  clearTimeout(seRzT);
+  seRzT = setTimeout(seDraw, 140);
+});

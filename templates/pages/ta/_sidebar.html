@@ -1,0 +1,41 @@
+  <!-- ================= 左侧导航栏 ================= -->
+  <aside class="sb" id="sb">
+    <div class="sb-h">
+      <div class="sb-t">
+        <b>Termux 控制台</b>
+        <span id="sbHost">本机管理</span>
+      </div>
+      <button class="sb-x" id="sbClose" type="button" title="关闭" aria-label="关闭导航">&times;</button>
+      <button class="sb-cg" id="sbToggle" type="button" title="收起 / 展开侧栏" aria-label="收起侧栏">
+        <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4.8L6.8 9l4.2 4.2"/></svg>
+      </button>
+    </div>
+
+    <nav class="sb-nav" id="sbNav">
+      <div class="sb-g">系统</div>
+      <button type="button" data-tab="overview" class="active">
+        <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="2" y="2" width="6" height="6" rx="1.6"/><rect x="10" y="2" width="6" height="6" rx="1.6"/><rect x="2" y="10" width="6" height="6" rx="1.6"/><rect x="10" y="10" width="6" height="6" rx="1.6"/></svg>
+        <span>概览</span></button>
+      <button type="button" data-tab="sensors">
+        <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2.2 12.6a7.2 7.2 0 1113.6 0"/><path d="M9 12.6l3.6-3.9"/><circle cx="9" cy="12.6" r="1.1" fill="currentColor" stroke="none"/></svg>
+        <span>传感器</span></button>
+      <button type="button" data-tab="services">
+        <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="2" y="2.5" width="14" height="5" rx="1.6"/><rect x="2" y="10.5" width="14" height="5" rx="1.6"/><circle cx="4.8" cy="5" r=".9" fill="currentColor" stroke="none"/><circle cx="4.8" cy="13" r=".9" fill="currentColor" stroke="none"/></svg>
+        <span>服务</span></button>
+      <button type="button" data-tab="processes">
+        <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 9.5h2.8l1.8-6 2.3 11 2.2-8.5 1.5 3.5h3.4"/></svg>
+        <span>进程</span></button>
+      <div class="sb-g">工具</div>
+      <button type="button" data-tab="files">
+        <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M2 5.4A1.6 1.6 0 013.6 3.8h2.7l1.5 2h5.6A1.6 1.6 0 0115 7.4v5.2a1.6 1.6 0 01-1.6 1.6H3.6A1.6 1.6 0 012 12.6z"/></svg>
+        <span>文件</span></button>
+      <button type="button" data-tab="terminal">
+        <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="1.8" y="3" width="14.4" height="12" rx="2"/><path d="M4.8 7.2l2.4 2.4-2.4 2.4M9.6 12h3.6"/></svg>
+        <span>终端</span></button>
+    </nav>
+
+    <div class="sb-f">
+      <span class="ver" id="hver" title="页面构建版本">v?</span>
+    </div>
+  </aside>
+  <div class="sb-ov" id="sbOv"></div>

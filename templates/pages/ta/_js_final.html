@@ -1,0 +1,49 @@
+/* ---------------- 通用输入弹窗 ---------------- */
+var askCb = null;
+function ask(title, desc, def, cb){
+  $('askTitle').textContent = title;
+  $('askDesc').textContent = desc || '';
+  $('askInput').value = def || '';
+  askCb = cb;
+  openMask('askMask');
+  setTimeout(function(){ $('askInput').focus(); $('askInput').select(); }, 60);
+}
+$('askOk').addEventListener('click', function(){
+  var v = $('askInput').value.trim();
+  var cb = askCb; askCb = null;
+  closeMask('askMask');
+  if(cb) cb(v);
+});
+$('askInput').addEventListener('keydown', function(e){
+  if(e.key === 'Enter') $('askOk').click();
+});
+
+/* ---------------- 启动 ---------------- */
+var PAGE_BUILD = document.documentElement.getAttribute('data-build') || '';
+apiJson('/index/health', {}).then(function(r){
+  if(!r || r.status !== 'ok'){ needKey(); return; }
+  if(r.token_file) $('keyFileHint').textContent = r.token_file;
+  /* 版本自检：页面里烘焙的构建号 vs 服务端当前构建号。
+     不一致 = 浏览器读到的是缓存副本，直接把结论摆出来，不用再猜「到底部署上没有」。 */
+  var v = $('hver');
+  if(v){
+    v.textContent = 'v' + (PAGE_BUILD || '?');
+    if(r.build && PAGE_BUILD && r.build !== PAGE_BUILD){
+      v.className = 'ver old';
+      v.title = '读到的是旧版页面 v' + PAGE_BUILD + '，服务端已是 v' + r.build;
+      var msg = '你读到的是旧版页面 v' + PAGE_BUILD + '，服务端已更新到 v' + r.build + '，请强制刷新';
+      flash(msg, 'err');
+      clearTimeout(flash._t);          /* 本条比普通提示重要，多停一会儿 */
+      flash._t = setTimeout(function(){ $('flash').className = 'flash'; }, 15000);
+    } else {
+      v.className = 'ver ok';
+      v.title = '页面与服务端版本一致：v' + (r.build || PAGE_BUILD) + '，浏览器没有读旧缓存';
+    }
+  }
+  if(qs.get('token')) localStorage.setItem('ta_token', qs.get('token'));
+  var h = location.hash.replace('#', '');
+  /* 概览永远先拉一次：顶栏的在线状态 / 机型 / 时间都来自它，
+     否则从 #files 之类的深链接进入时顶栏会一直停在「连接中…」 */
+  loadOverview();
+  if(h && h !== 'overview' && TABS.indexOf(h) >= 0) switchTab(h, true);
+}).catch(function(){ needKey(); });

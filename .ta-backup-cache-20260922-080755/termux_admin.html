@@ -1,0 +1,1433 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0b0f16">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="robots" content="noindex, nofollow">
+<title>Termux 管理控制台</title>
+<style>
+:root{
+  --bg:#0b0f16; --bg2:#0d1117; --card:#141a23; --card2:#1a212b; --card3:#212a36;
+  --term:#05080d;
+  --border:#252d3a; --border2:#333d4d;
+  --text:#d7dee8; --dim:#8b97a8; --dim2:#63707f;
+  --blue:#58a6ff; --green:#3fb950; --orange:#e3a008; --purple:#a371f7; --red:#f85149;
+  --radius:12px; --radius-sm:9px;
+  --shadow:0 1px 2px rgba(0,0,0,.35), 0 10px 28px -16px rgba(0,0,0,.75);
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","HarmonyOS Sans SC","Microsoft YaHei",Roboto,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);
+  font-size:13.5px;line-height:1.55;min-height:100vh;
+  padding-bottom:calc(44px + env(safe-area-inset-bottom));
+  -webkit-tap-highlight-color:transparent;
+  overflow-x:hidden}
+/* 顶部氛围光 */
+body::before{content:'';position:fixed;left:0;right:0;top:0;height:360px;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(620px 230px at 10% -10%, rgba(88,166,255,.14), transparent 72%),
+    radial-gradient(540px 210px at 92% -14%, rgba(163,113,247,.12), transparent 72%)}
+a{color:var(--blue);text-decoration:none}
+pre,code,.mono{font-family:var(--mono)}
+code{background:rgba(255,255,255,.05);padding:1px 5px;border-radius:4px;font-size:.92em}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px;border-radius:4px}
+::selection{background:rgba(88,166,255,.3)}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#2b3442;border-radius:99px;border:2px solid var(--bg)}
+::-webkit-scrollbar-thumb:hover{background:#3b4757}
+
+/* ================= 顶栏 ================= */
+header{position:sticky;top:0;z-index:50;background:rgba(11,15,22,.86);
+  backdrop-filter:saturate(160%) blur(14px);-webkit-backdrop-filter:saturate(160%) blur(14px);
+  border-bottom:1px solid var(--border);
+  padding:11px 20px;padding-top:calc(11px + env(safe-area-inset-top));
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+header .brand{font-size:15px;font-weight:700;letter-spacing:.2px;display:flex;align-items:center;gap:9px}
+header .spacer{flex:1}
+header .sub{color:var(--dim);font-size:11.5px;font-variant-numeric:tabular-nums}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--dim2);flex-shrink:0;
+  transition:background .3s,box-shadow .3s}
+.dot.ok{background:var(--green);box-shadow:0 0 0 3px rgba(63,185,80,.16),0 0 10px rgba(63,185,80,.8)}
+.dot.bad{background:var(--red);box-shadow:0 0 0 3px rgba(248,81,73,.16),0 0 10px rgba(248,81,73,.8)}
+.hact{display:flex;gap:7px;align-items:center}
+.icon-btn{display:inline-flex;align-items:center;gap:5px;background:var(--card);
+  border:1px solid var(--border);color:var(--dim);border-radius:8px;padding:6px 11px;font-size:12px;
+  cursor:pointer;white-space:nowrap;font-family:inherit;transition:all .15s}
+.icon-btn svg{width:14px;height:14px;flex-shrink:0}
+.icon-btn:hover{border-color:var(--border2);color:var(--text);background:var(--card2)}
+.icon-btn:active{transform:translateY(1px)}
+.icon-btn.on{border-color:rgba(63,185,80,.5);color:var(--green);background:rgba(63,185,80,.08)}
+
+/* ================= 标签页 ================= */
+nav{position:relative;z-index:2;display:flex;gap:6px;padding:13px 20px 0;
+  overflow-x:auto;scrollbar-width:none}
+nav::-webkit-scrollbar{display:none}
+nav button{display:inline-flex;align-items:center;gap:7px;background:transparent;
+  border:1px solid transparent;color:var(--dim);padding:8px 15px;font-size:13px;cursor:pointer;
+  border-radius:10px;white-space:nowrap;font-family:inherit;transition:all .16s;font-weight:500}
+nav button svg{width:15px;height:15px;opacity:.8;transition:opacity .16s}
+nav button:hover{color:var(--text);background:rgba(255,255,255,.035)}
+nav button.active{color:var(--text);background:var(--card);border-color:var(--border);
+  font-weight:600;box-shadow:var(--shadow)}
+nav button.active svg{color:var(--blue);opacity:1}
+
+main{padding:16px 20px 0;max-width:1180px;margin:0 auto;position:relative;z-index:1}
+.panel{display:none;animation:fade .22s ease}
+.panel.active{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* ================= 卡片 ================= */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+  padding:16px;margin-bottom:14px;box-shadow:var(--shadow)}
+.card-h{display:flex;align-items:center;gap:9px;margin-bottom:14px;flex-wrap:wrap}
+.card-h .t{font-size:11.5px;font-weight:700;color:var(--dim);text-transform:uppercase;
+  letter-spacing:.9px}
+.card-h .spacer{flex:1}
+
+.grid{display:grid;gap:12px}
+.g4{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
+.g2{grid-template-columns:repeat(auto-fill,minmax(410px,1fr));align-items:start}
+/* 温度传感器很多（本机 70 个），限高滚动，别把整行卡片撑爆 */
+#ovTempZones{max-height:254px;overflow:auto;padding-right:4px}
+
+.stat{position:relative;overflow:hidden;background:var(--card2);border:1px solid var(--border);
+  border-radius:var(--radius-sm);padding:13px;--accent-c:var(--blue)}
+.stat::after{content:'';position:absolute;left:0;right:0;top:0;height:2px;
+  background:var(--accent-c);opacity:.55}
+.st-blue{--accent-c:var(--blue)} .st-purple{--accent-c:var(--purple)}
+.st-green{--accent-c:var(--green)} .st-orange{--accent-c:var(--orange)}
+.stat .lbl{font-size:10.5px;color:var(--dim);text-transform:uppercase;letter-spacing:.7px;
+  margin-bottom:5px;display:flex;align-items:center;gap:5px}
+.stat .val{font-size:1.42rem;font-weight:700;line-height:1.15;font-variant-numeric:tabular-nums}
+.stat .desc{font-size:10.5px;color:var(--dim2);margin-top:4px}
+.c-blue{color:var(--blue)} .c-green{color:var(--green)} .c-orange{color:var(--orange)}
+.c-purple{color:var(--purple)} .c-red{color:var(--red)} .c-dim{color:var(--dim)}
+
+.bar{height:6px;background:#232c39;border-radius:99px;overflow:hidden;margin-top:9px}
+.bar > i{position:relative;display:block;height:100%;border-radius:99px;overflow:hidden;
+  transition:width .45s cubic-bezier(.4,0,.2,1)}
+.bar > i::after{content:'';position:absolute;inset:0;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.3),transparent);
+  transform:translateX(-100%);animation:sheen 2.8s ease-in-out infinite}
+@keyframes sheen{0%{transform:translateX(-100%)}60%,100%{transform:translateX(100%)}}
+.bar-fill-blue > i{background:linear-gradient(90deg,#1f6feb,#58a6ff)}
+.bar-fill-green > i{background:linear-gradient(90deg,#238636,#3fb950)}
+.bar-fill-orange > i{background:linear-gradient(90deg,#9e6a03,#e3a008)}
+.bar-fill-red > i{background:linear-gradient(90deg,#a40e26,#f85149)}
+
+/* 键值表 */
+.kv{display:grid;grid-template-columns:auto 1fr;gap:8px 16px;font-size:12.5px}
+.kv dt{color:var(--dim);white-space:nowrap}
+.kv dd{word-break:break-word;font-variant-numeric:tabular-nums}
+
+/* ================= 表格 ================= */
+.tw{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -16px;padding:0 16px}
+table{width:100%;border-collapse:separate;border-spacing:0;font-size:12.5px}
+th{text-align:left;color:var(--dim);font-weight:700;font-size:10.5px;text-transform:uppercase;
+  letter-spacing:.6px;padding:8px 9px;border-bottom:1px solid var(--border);
+  white-space:nowrap;background:var(--card)}
+td{padding:9px 9px;border-bottom:1px solid #1e2632;vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr{transition:background .12s}
+tbody tr:hover{background:rgba(88,166,255,.055)}
+td.num{text-align:right;font-variant-numeric:tabular-nums}
+td.act{white-space:nowrap;text-align:right}
+td.act .btn{margin-left:4px}
+td.act .btn:first-child{margin-left:0}
+.cmd-cell{max-width:470px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nowrap{white-space:nowrap}
+
+/* 徽标 */
+.tag{display:inline-block;padding:1.5px 8px;border-radius:99px;font-size:10.5px;font-weight:600;
+  border:1px solid transparent;white-space:nowrap;line-height:1.6}
+.tag.up{background:rgba(63,185,80,.13);color:var(--green);border-color:rgba(63,185,80,.32)}
+.tag.down{background:rgba(139,151,168,.11);color:var(--dim);border-color:rgba(139,151,168,.28)}
+.tag.fail{background:rgba(248,81,73,.13);color:var(--red);border-color:rgba(248,81,73,.32)}
+.tag.on{background:rgba(88,166,255,.12);color:var(--blue);border-color:rgba(88,166,255,.3)}
+.tag.off{background:rgba(139,151,168,.09);color:var(--dim2);border-color:rgba(139,151,168,.2)}
+
+/* 按钮 */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:4px;
+  background:var(--card2);border:1px solid var(--border);color:var(--text);
+  border-radius:7px;padding:4px 10px;font-size:11.5px;cursor:pointer;white-space:nowrap;
+  font-family:inherit;transition:all .14s;line-height:1.6}
+.btn:hover{border-color:var(--border2);background:var(--card3);color:#fff}
+.btn:active{transform:translateY(1px)}
+.btn.danger:hover{border-color:rgba(248,81,73,.7);color:var(--red);background:rgba(248,81,73,.1)}
+.btn.ok:hover{border-color:rgba(63,185,80,.7);color:var(--green);background:rgba(63,185,80,.1)}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.btn.on{border-color:rgba(63,185,80,.55);color:var(--green);background:rgba(63,185,80,.1)}
+.btn.on:hover{border-color:rgba(63,185,80,.75);color:var(--green);background:rgba(63,185,80,.16)}
+.btn.pri{background:linear-gradient(180deg,#3b82f6,#2563eb);border-color:#3b82f6;color:#fff;
+  padding:7px 16px;font-size:12.5px;font-weight:600}
+.btn.pri:hover{background:linear-gradient(180deg,#60a5fa,#3b82f6);border-color:#60a5fa;color:#fff}
+
+/* 输入 */
+input[type=text],input[type=password],input[type=number],textarea,select{
+  background:var(--bg2);border:1px solid var(--border);color:var(--text);border-radius:8px;
+  padding:7px 10px;font-size:12.5px;font-family:inherit;width:100%;transition:border-color .15s,box-shadow .15s}
+input:focus,textarea:focus,select:focus{outline:none;border-color:var(--blue);
+  box-shadow:0 0 0 3px rgba(88,166,255,.14)}
+input[type=checkbox],input[type=radio]{width:auto;height:auto;padding:0;margin:0;
+  accent-color:var(--blue);cursor:pointer;vertical-align:middle}
+textarea{font-family:var(--mono);line-height:1.55;resize:vertical;min-height:180px;
+  white-space:pre;overflow-wrap:normal;overflow-x:auto;font-size:12.5px}
+select{appearance:none;-webkit-appearance:none;padding-right:26px;cursor:pointer;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%238b97a8' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+  background-repeat:no-repeat;background-position:right 9px center}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.row > .grow{flex:1;min-width:140px}
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:11px}
+.toolbar > .grow{flex:1 1 140px;min-width:0}
+.w-sm{max-width:96px} .w-md{max-width:132px} .w-lg{max-width:210px}
+
+/* 路径面包屑 */
+.crumbs{display:flex;flex-wrap:wrap;gap:3px;align-items:center;font-size:12.5px;margin-bottom:12px;
+  padding:8px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;
+  font-family:var(--mono)}
+.crumbs span.sep{color:var(--dim2)}
+.crumbs a{cursor:pointer;padding:1px 5px;border-radius:5px;transition:background .12s}
+.crumbs a:hover{background:var(--card3);color:#fff}
+
+/* 终端 */
+#termOut,#svLog,#outBody{background:var(--term);border:1px solid var(--border);border-radius:var(--radius-sm);
+  padding:13px;font-size:12px;white-space:pre-wrap;word-break:break-word;overflow:auto;
+  font-family:var(--mono);line-height:1.6}
+#termOut{min-height:130px;max-height:52vh}
+#svLog{font-size:11.5px;max-height:46vh}
+#termOut .cmd{color:var(--blue)}
+#termOut .rc0{color:var(--green)}
+#termOut .rcn{color:var(--red)}
+#termOut .err{color:#ffa198}
+.preset{padding:5px 10px;font-size:11px}
+.term-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:6px;margin-bottom:12px}
+.temp-chip{display:flex;justify-content:space-between;gap:8px;padding:6px 10px;
+  background:var(--card2);border:1px solid var(--border);border-radius:7px;font-size:11.5px}
+.temp-chip b{font-variant-numeric:tabular-nums;flex-shrink:0}
+.temp-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* 弹窗 */
+.mask{position:fixed;inset:0;background:rgba(3,6,10,.76);backdrop-filter:blur(4px);z-index:200;
+  display:none;align-items:center;justify-content:center;padding:16px}
+.mask.show{display:flex;animation:fade .16s ease}
+.modal{background:var(--card);border:1px solid var(--border2);border-radius:14px;
+  width:100%;max-width:920px;max-height:92vh;max-height:92dvh;display:flex;flex-direction:column;
+  overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.7)}
+.modal.sm{max-width:460px}
+.modal-h{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;
+  flex-shrink:0}
+.modal-h .t{font-weight:600;font-size:13.5px;flex:1;word-break:break-all}
+.modal-b{padding:16px 18px;overflow:auto;flex:1;-webkit-overflow-scrolling:touch}
+.modal-f{padding:12px 18px;border-top:1px solid var(--border);display:flex;gap:8px;
+  justify-content:flex-end;align-items:center;flex-wrap:wrap;flex-shrink:0;
+  background:rgba(0,0,0,.16)}
+.x{background:none;border:none;color:var(--dim);font-size:22px;cursor:pointer;line-height:1;
+  padding:2px 6px;border-radius:7px;transition:all .14s;flex-shrink:0}
+.x:hover{color:var(--red);background:rgba(248,81,73,.12)}
+
+/* 提示条 */
+.flash{position:fixed;left:50%;transform:translateX(-50%) translateY(8px);
+  bottom:calc(26px + env(safe-area-inset-bottom));z-index:300;
+  background:rgba(26,33,43,.97);border:1px solid var(--border2);border-left:3px solid var(--dim2);
+  border-radius:10px;padding:10px 18px;font-size:12.5px;max-width:90vw;
+  box-shadow:0 12px 32px rgba(0,0,0,.6);backdrop-filter:blur(8px);
+  opacity:0;transition:opacity .22s,transform .22s;pointer-events:none}
+.flash.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.flash.ok{border-left-color:var(--green)} .flash.err{border-left-color:var(--red)}
+
+.empty{color:var(--dim2);text-align:center;padding:26px 10px;font-size:12.5px}
+.spin{display:inline-block;width:13px;height:13px;border:2px solid var(--border);
+  border-top-color:var(--blue);border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.skel{height:12px;border-radius:6px;background:linear-gradient(100deg,#1a212b 30%,#26303e 50%,#1a212b 70%);
+  background-size:220% 100%;animation:shim 1.15s linear infinite}
+@keyframes shim{to{background-position:-220% 0}}
+
+/* ================= 移动端 ================= */
+@media(max-width:720px){
+  body{font-size:13px;padding-bottom:calc(74px + env(safe-area-inset-bottom))}
+
+  /* 顶栏：品牌+按钮一行，副标题独占一行 */
+  header{padding:10px 14px;padding-top:calc(10px + env(safe-area-inset-top));
+    gap:6px 10px;align-items:center}
+  header .brand{order:1;font-size:14.5px}
+  header .spacer{display:none}
+  header .hact{order:2;margin-left:auto}
+  header .sub{order:3;flex-basis:100%;font-size:11px;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis}
+  .icon-btn{padding:7px 11px;font-size:12px;min-height:36px}
+
+  /* 底部标签栏（拇指可达） */
+  nav{position:fixed;left:0;right:0;bottom:0;z-index:60;display:grid;
+    grid-template-columns:repeat(5,1fr);gap:2px;padding:6px 6px;
+    padding-bottom:calc(6px + env(safe-area-inset-bottom));
+    background:rgba(11,15,22,.95);backdrop-filter:saturate(160%) blur(14px);
+    -webkit-backdrop-filter:saturate(160%) blur(14px);
+    border-top:1px solid var(--border);border-bottom:none;overflow:visible;
+    transition:transform .2s ease}
+  body.kbd nav{transform:translateY(150%)}
+  nav button{flex-direction:column;gap:3px;padding:7px 2px;font-size:10.5px;
+    border-radius:10px;font-weight:500;min-height:48px;justify-content:center;color:var(--dim2)}
+  nav button svg{width:19px;height:19px;opacity:.9}
+  nav button.active{background:rgba(88,166,255,.13);border-color:transparent;
+    color:var(--blue);box-shadow:none}
+  nav button.active svg{color:var(--blue)}
+  nav button:hover{background:transparent;color:var(--text)}
+  nav button.active:hover{background:rgba(88,166,255,.16)}
+
+  main{padding:13px 13px 0}
+  .card{padding:13px;border-radius:11px;margin-bottom:11px}
+  .card-h{margin-bottom:11px}
+  .grid{gap:9px}
+  .g4{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .g2{grid-template-columns:repeat(1,minmax(0,1fr))}
+  .stat{padding:11px}
+  .stat .val{font-size:1.25rem}
+  .stat .desc{font-size:10px}
+  .kv{grid-template-columns:auto 1fr;gap:7px 12px;font-size:12px}
+
+  /* 触控友好尺寸 */
+  .btn{min-height:34px;padding:6px 12px;font-size:12px}
+  .btn.pri{min-height:38px;padding:8px 16px;font-size:13px}
+  .preset{min-height:32px}
+  input[type=text],input[type=password],input[type=number],select,textarea{font-size:16px;padding:9px 11px}
+  textarea{font-size:13px;min-height:46vh}
+  .icon-btn{min-height:38px}
+
+  /* 工具条：等分栅格，按钮一样大、好点按，不会出现孤零零的半行按钮 */
+  .toolbar{display:grid;gap:8px;margin-bottom:11px}
+  .toolbar > *{max-width:none}
+  .toolbar > .grow,.tb-3 > select{grid-column:1/-1;min-width:0}
+  .toolbar .btn{width:100%;justify-content:center;padding:6px 4px}
+  .tb-1{grid-template-columns:1fr}
+  .tb-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .tb-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .tb-4{grid-template-columns:repeat(4,minmax(0,1fr))}
+  #psFilter{order:2} #psReload{order:1}
+  .row{flex-wrap:wrap}
+  .crumbs{font-size:11.5px;padding:7px 9px}
+
+  /* —— 表格 → 卡片 —— */
+  .tw{overflow:visible;margin:0;padding:0}
+  .tw table,.tw tbody{display:block;width:100%}
+  .tw thead{display:none}
+  .tw tr{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));
+    gap:9px 10px;background:var(--card2);border:1px solid var(--border);
+    border-radius:11px;padding:12px;margin-bottom:9px;position:relative}
+  .tw tr:hover{background:var(--card2)}
+  .tw td{display:block;border:none;padding:0;text-align:left;min-width:0;overflow-wrap:anywhere}
+  .tw td.num{text-align:left;font-variant-numeric:tabular-nums}
+  .tw td.nowrap{white-space:normal}
+  .tw td.act{text-align:left;white-space:normal;display:grid;gap:7px}
+  .tw td.act .btn{margin:0;width:100%;min-width:0;padding:6px 4px}
+  #fRows td.act,#svRows td.act{grid-template-columns:repeat(4,minmax(0,1fr))}
+  #psRows td.act{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .tw td.m-full{grid-column:1/-1}
+  .tw td.m-hide{display:none}
+  .tw td.c-main{font-size:13px;line-height:1.45}
+  .tw td[data-label]:not(.m-full):not(.c-main){font-size:12px}
+  .tw td[data-label]:not(.m-full)::before{content:attr(data-label);display:block;
+    font-size:9.5px;color:var(--dim2);letter-spacing:.6px;text-transform:uppercase;
+    margin-bottom:2px;font-weight:700}
+  /* 注意：选择器要带上 .tw，否则会被上面的 .tw td 覆盖掉 display */
+  .tw td.cmd-cell{max-width:none;white-space:normal;display:-webkit-box;
+    -webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
+    word-break:break-all;line-height:1.5}
+  /* 文件列表：复选框浮在卡片左上角 */
+  #fRows tr{padding-left:40px}
+  #fRows td.c-chk{position:absolute;left:13px;top:13px;width:auto}
+  #fRows .fchk{width:17px;height:17px}
+  .empty{padding:22px 10px}
+  .tw td.empty, .tw td[colspan]{grid-column:1/-1;text-align:center}
+
+  .term-grid{grid-template-columns:repeat(auto-fill,minmax(104px,1fr))}
+  #termOut{max-height:44vh;font-size:11.5px;padding:11px}
+  #svLog{max-height:40vh}
+  .flash{bottom:calc(86px + env(safe-area-inset-bottom));padding:10px 15px;font-size:12.5px}
+
+  .mask{padding:0;align-items:flex-end}
+  .modal{max-width:100%;max-height:94dvh;border-radius:16px 16px 0 0;border-bottom:none}
+  .modal.sm{border-radius:16px 16px 0 0}
+  .modal-h{padding:13px 15px}
+  .modal-b{padding:14px 15px}
+  .modal-f{padding:11px 15px calc(11px + env(safe-area-inset-bottom))}
+  .modal-f .btn{flex:1 1 auto;justify-content:center}
+}
+@media(max-width:400px){
+  .g4{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .stat .val{font-size:1.15rem}
+  .tw tr{padding:11px;gap:8px}
+  #fRows tr{padding-left:37px}
+  .btn{font-size:11.5px;padding:6px 3px}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;
+    transition-duration:.001ms!important}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand"><span class="dot" id="hdot"></span>Termux 管理控制台</div>
+  <div class="sub" id="hsub">连接中…</div>
+  <div class="spacer"></div>
+  <div class="hact">
+    <button class="icon-btn" id="btnKey" title="管理访问令牌">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.6 7.6a5 5 0 11-7.1 7.1 5 5 0 017.1-7.1zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3"/></svg>
+      令牌</button>
+    <button class="icon-btn" id="btnRefresh" title="重新读取当前页数据">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0115.5-6.2M21 12a9 9 0 01-15.5 6.2"/><path d="M18 3v5h-5M6 21v-5h5"/></svg>
+      刷新</button>
+  </div>
+</header>
+
+<nav>
+  <button data-tab="overview" class="active">
+    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="2" y="2" width="6" height="6" rx="1.6"/><rect x="10" y="2" width="6" height="6" rx="1.6"/><rect x="2" y="10" width="6" height="6" rx="1.6"/><rect x="10" y="10" width="6" height="6" rx="1.6"/></svg>
+    概览</button>
+  <button data-tab="services">
+    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="2" y="2.5" width="14" height="5" rx="1.6"/><rect x="2" y="10.5" width="14" height="5" rx="1.6"/><circle cx="4.8" cy="5" r=".9" fill="currentColor" stroke="none"/><circle cx="4.8" cy="13" r=".9" fill="currentColor" stroke="none"/></svg>
+    服务</button>
+  <button data-tab="processes">
+    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 9.5h2.8l1.8-6 2.3 11 2.2-8.5 1.5 3.5h3.4"/></svg>
+    进程</button>
+  <button data-tab="files">
+    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M2 5.4A1.6 1.6 0 013.6 3.8h2.7l1.5 2h5.6A1.6 1.6 0 0115 7.4v5.2a1.6 1.6 0 01-1.6 1.6H3.6A1.6 1.6 0 012 12.6z"/></svg>
+    文件</button>
+  <button data-tab="terminal">
+    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="1.8" y="3" width="14.4" height="12" rx="2"/><path d="M4.8 7.2l2.4 2.4-2.4 2.4M9.6 12h3.6"/></svg>
+    终端</button>
+</nav>
+
+<main>
+
+  <!-- ============ 概览 ============ -->
+  <section class="panel active" id="tab-overview">
+    <div class="grid g4" style="margin-bottom:13px">
+      <div class="stat st-blue"><div class="lbl">CPU 活跃度 <span style="opacity:.5;cursor:help;font-weight:400" title="Android 下 /proc/stat 不可读，改为两次采样内核 cpufreq 频率计数器：全程停在最低频=0%，跑满最高频=100%。悬停数值看每簇明细。">ⓘ</span></div>
+        <div class="val c-blue" id="ovCpu">--</div>
+        <div class="bar bar-fill-blue"><i id="ovCpuBar" style="width:0%"></i></div>
+        <div class="desc" id="ovCpuDesc">--</div></div>
+      <div class="stat st-purple"><div class="lbl">内存</div>
+        <div class="val c-purple" id="ovMem">--</div>
+        <div class="bar bar-fill-blue"><i id="ovMemBar" style="width:0%"></i></div>
+        <div class="desc" id="ovMemDesc">--</div></div>
+      <div class="stat st-green"><div class="lbl">存储</div>
+        <div class="val c-green" id="ovDisk">--</div>
+        <div class="bar bar-fill-green"><i id="ovDiskBar" style="width:0%"></i></div>
+        <div class="desc" id="ovDiskDesc">--</div></div>
+      <div class="stat st-orange"><div class="lbl">电池</div>
+        <div class="val c-orange" id="ovBat">--</div>
+        <div class="bar bar-fill-orange"><i id="ovBatBar" style="width:0%"></i></div>
+        <div class="desc" id="ovBatDesc">--</div></div>
+    </div>
+
+    <div class="grid g2">
+      <div class="card">
+        <div class="card-h"><span class="t">系统信息</span></div>
+        <dl class="kv" id="ovSys"></dl>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="t">温度</span><span class="spacer"></span>
+          <span class="c-dim" id="ovTempN" style="font-size:11px"></span></div>
+        <div class="grid g4" id="ovTempGroups" style="margin-bottom:11px"></div>
+        <div class="term-grid" id="ovTempZones"></div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="t">网络</span></div>
+        <dl class="kv" id="ovNet"></dl>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="t">磁盘挂载</span><span class="spacer"></span>
+          <button class="btn" id="btnDeep">含目录占用</button></div>
+        <div class="tw"><table><thead><tr>
+          <th>挂载点</th><th class="num">容量</th><th class="num">已用</th>
+          <th class="num">可用</th><th class="num">占比</th></tr></thead>
+          <tbody id="ovDiskRows"></tbody></table></div>
+        <div id="ovDu" style="margin-top:11px"></div>
+      </div>
+      <div class="card" style="grid-column:1/-1">
+        <div class="card-h"><span class="t">服务概览</span><span class="spacer"></span>
+          <span class="c-dim" style="font-size:11px" id="ovSvcN"></span></div>
+        <div class="row" id="ovSvcList"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 服务 ============ -->
+  <section class="panel" id="tab-services">
+    <div class="card">
+      <div class="card-h"><span class="t">runit 服务</span><span class="spacer"></span>
+        <span class="c-dim" style="font-size:11px" id="svDir"></span>
+        <button class="btn" id="svReload">重新扫描</button></div>
+      <div class="tw"><table><thead><tr>
+        <th>服务</th><th>状态</th><th class="num">PID</th><th class="num">运行</th>
+        <th>自启</th><th class="act">操作</th></tr></thead>
+        <tbody id="svRows"><tr><td colspan="6" class="empty">加载中…</td></tr></tbody></table></div>
+    </div>
+    <div class="card">
+      <div class="card-h"><span class="t">日志查看</span></div>
+      <div class="toolbar tb-3">
+        <select id="logSvc" class="w-lg"></select>
+        <input type="number" id="logLines" value="200" min="10" max="2000" class="w-sm"
+               inputmode="numeric" title="读取行数">
+        <button class="btn pri" id="logLoad">读取</button>
+        <button class="btn" id="logAuto">自动: 关</button>
+      </div>
+      <div id="svLog">选择服务后点「读取」</div>
+    </div>
+  </section>
+
+  <!-- ============ 进程 ============ -->
+  <section class="panel" id="tab-processes">
+    <div class="card">
+      <div class="card-h"><span class="t">进程列表</span></div>
+      <div class="toolbar tb-2">
+        <select id="psSort" class="w-md">
+          <option value="cpu">按 CPU</option><option value="mem">按内存</option></select>
+        <input type="text" id="psFilter" class="grow" placeholder="过滤命令…"
+               autocapitalize="off" autocomplete="off" spellcheck="false">
+        <button class="btn" id="psReload">刷新</button>
+      </div>
+      <div class="tw"><table><thead><tr>
+        <th class="num">PID</th><th class="m-hide">用户</th><th class="num">CPU%</th>
+        <th class="num">内存%</th><th class="num">RSS</th><th>状态</th>
+        <th>运行</th><th>命令</th><th class="act">操作</th></tr></thead>
+        <tbody id="psRows"><tr><td colspan="9" class="empty">加载中…</td></tr></tbody></table></div>
+    </div>
+  </section>
+
+  <!-- ============ 文件 ============ -->
+  <section class="panel" id="tab-files">
+    <div class="card">
+      <div class="crumbs" id="fCrumbs"></div>
+      <div class="toolbar tb-1">
+        <input type="text" id="fPath" class="grow mono" placeholder="/data/data/com.termux/files/home"
+               autocapitalize="off" autocomplete="off" spellcheck="false">
+        <button class="btn pri" id="fGo">前往</button>
+      </div>
+      <div class="toolbar tb-4">
+        <button class="btn" id="fUp">↑ 上级</button>
+        <button class="btn" id="fHome">家目录</button>
+        <button class="btn" id="fHidden">隐藏: 关</button>
+        <button class="btn" id="fReload">刷新</button>
+      </div>
+      <div class="toolbar tb-2" style="margin-bottom:12px">
+        <button class="btn ok" id="fMkdir">＋ 新建文件夹</button>
+        <button class="btn ok" id="fMkfile">＋ 新建文件</button>
+        <button class="btn" id="fUploadBtn">↑ 上传</button>
+        <input type="file" id="fUpload" multiple style="display:none">
+        <button class="btn danger" id="fDelSel">删除选中</button>
+      </div>
+      <div class="c-dim" style="font-size:11px;margin-bottom:10px" id="fInfo"></div>
+      <div class="tw"><table><thead><tr>
+        <th style="width:30px"><input type="checkbox" id="fAll"></th>
+        <th>名称</th><th class="num">大小</th><th>修改时间</th>
+        <th class="num">权限</th><th class="act">操作</th></tr></thead>
+        <tbody id="fRows"><tr><td colspan="6" class="empty">加载中…</td></tr></tbody></table></div>
+    </div>
+  </section>
+
+  <!-- ============ 终端 ============ -->
+  <section class="panel" id="tab-terminal">
+    <div class="card">
+      <div class="card-h"><span class="t">命令执行</span><span class="spacer"></span>
+        <button class="btn" id="tClear">清屏</button></div>
+      <div class="term-grid" id="tPresets"></div>
+      <div class="row" style="margin-bottom:10px">
+        <input type="text" id="tCwd" class="grow mono" placeholder="工作目录" value=""
+               autocapitalize="off" autocomplete="off" spellcheck="false">
+        <input type="number" id="tTimeout" value="30" min="1" max="180" class="w-sm"
+               inputmode="numeric" title="超时（秒）">
+      </div>
+      <div class="toolbar tb-1" style="margin-bottom:11px">
+        <input type="text" id="tCmd" class="grow mono" placeholder="输入 shell 命令，回车执行"
+               autocapitalize="off" autocomplete="off" spellcheck="false"
+               enterkeyhint="send">
+        <button class="btn pri" id="tRun">执行</button>
+      </div>
+      <div id="termOut"><span class="c-dim">就绪。命令以 Termux 用户身份在当前手机上执行。</span></div>
+    </div>
+  </section>
+
+</main>
+
+<!-- 令牌弹窗 -->
+<div class="mask" id="keyMask">
+  <div class="modal sm">
+    <div class="modal-h"><span class="t">管理令牌</span><button class="x" data-close="keyMask">×</button></div>
+    <div class="modal-b">
+      <p class="c-dim" style="margin-bottom:11px;font-size:12px">
+        令牌保存在手机上的 <code id="keyFileHint">~/.termux_admin_token</code>，
+        也可以在 <code>mysite/.env</code> 里用 <code>TERMUX_ADMIN_TOKEN</code> 指定。
+        浏览器会把令牌记在 localStorage，方便下次直接进入。
+      </p>
+      <input type="text" id="keyInput" class="mono" placeholder="粘贴令牌"
+             autocapitalize="off" autocomplete="off" spellcheck="false">
+      <p class="c-dim" style="margin-top:9px;font-size:11.5px" id="keyMsg"></p>
+    </div>
+    <div class="modal-f"><button class="btn pri" id="keySave">保存并验证</button></div>
+  </div>
+</div>
+
+<!-- 编辑器 -->
+<div class="mask" id="editMask">
+  <div class="modal">
+    <div class="modal-h"><span class="t mono" id="editTitle">文件</span>
+      <button class="x" data-close="editMask">×</button></div>
+    <div class="modal-b"><textarea id="editBody" spellcheck="false" autocapitalize="off"
+      autocomplete="off"></textarea></div>
+    <div class="modal-f">
+      <span class="c-dim" style="font-size:11.5px;margin-right:auto" id="editInfo"></span>
+      <button class="btn" id="editDownload">下载</button>
+      <button class="btn pri" id="editSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 输出弹窗（进程详情 / 通用输出） -->
+<div class="mask" id="outMask">
+  <div class="modal">
+    <div class="modal-h"><span class="t" id="outTitle">输出</span>
+      <button class="x" data-close="outMask">×</button></div>
+    <div class="modal-b"><div id="outBody"></div></div>
+  </div>
+</div>
+
+<!-- 输入弹窗 -->
+<div class="mask" id="askMask">
+  <div class="modal sm">
+    <div class="modal-h"><span class="t" id="askTitle">输入</span>
+      <button class="x" data-close="askMask">×</button></div>
+    <div class="modal-b">
+      <p class="c-dim" id="askDesc" style="margin-bottom:10px;font-size:12px"></p>
+      <input type="text" id="askInput" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="modal-f">
+      <button class="btn" data-close="askMask">取消</button>
+      <button class="btn pri" id="askOk">确定</button>
+    </div>
+  </div>
+</div>
+
+<div class="flash" id="flash"></div>
+
+<script>
+(function(){
+'use strict';
+
+/* ---------------- 基础工具 ---------------- */
+var $ = function(id){ return document.getElementById(id); };
+var esc = function(s){
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+};
+var qs = new URLSearchParams(location.search);
+var TOKEN = qs.get('token') || localStorage.getItem('ta_token') || '';
+
+function flash(msg, type){
+  var el = $('flash');
+  el.textContent = msg;
+  el.className = 'flash show ' + (type || '');
+  clearTimeout(flash._t);
+  flash._t = setTimeout(function(){ el.className = 'flash'; }, 2800);
+}
+
+function openMask(id){ $(id).classList.add('show'); }
+function closeMask(id){ $(id).classList.remove('show'); }
+document.querySelectorAll('[data-close]').forEach(function(b){
+  b.addEventListener('click', function(){ closeMask(b.getAttribute('data-close')); });
+});
+Array.prototype.forEach.call(document.querySelectorAll('.mask'), function(m){
+  m.addEventListener('click', function(e){ if(e.target === m) m.classList.remove('show'); });
+});
+
+function api(path, opts){
+  opts = opts || {};
+  var url = path + (path.indexOf('?') >= 0 ? '&' : '?') + 'token=' + encodeURIComponent(TOKEN);
+  var headers = Object.assign({'X-Admin-Token': TOKEN}, opts.headers || {});
+  return fetch(url, Object.assign({}, opts, {headers: headers, cache:'no-store'}))
+    .then(function(r){
+      if(r.status === 401){ needKey(); throw new Error('未授权：请输入管理令牌'); }
+      var ct = r.headers.get('content-type') || '';
+      if(ct.indexOf('application/json') >= 0) return r.json();
+      return r.text();
+    });
+}
+function apiJson(path, body){
+  return api(path, {method:'POST', headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify(body || {})});
+}
+function dl(path){
+  return path + (path.indexOf('?') >= 0 ? '&' : '?') + 'token=' + encodeURIComponent(TOKEN);
+}
+function needKey(){
+  $('keyInput').value = TOKEN;
+  openMask('keyMask');
+}
+function fmtTime(t){ return t ? new Date(t*1000).toLocaleString('zh-CN', {hour12:false}) : '-'; }
+function skel(cols){
+  return '<tr><td colspan="' + cols + '" class="empty" style="padding:10px 0">'
+    + '<div class="skel" style="margin-bottom:9px"></div>'
+    + '<div class="skel" style="width:78%;margin-bottom:9px"></div>'
+    + '<div class="skel" style="width:56%"></div></td></tr>';
+}
+
+/* 移动端：弹出软键盘时收起底部标签栏，避免遮挡 */
+var isNarrow = function(){ return window.innerWidth <= 720; };
+document.addEventListener('focusin', function(e){
+  if(!isNarrow()) return;
+  var t = e.target;
+  if(t && t.tagName && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))
+    document.body.classList.add('kbd');
+});
+document.addEventListener('focusout', function(){
+  setTimeout(function(){
+    var a = document.activeElement;
+    var still = a && a.tagName && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName);
+    if(!still) document.body.classList.remove('kbd');
+  }, 60);
+});
+
+/* ---------------- 令牌 ---------------- */
+$('btnKey').addEventListener('click', needKey);
+$('keySave').addEventListener('click', function(){
+  var v = $('keyInput').value.trim();
+  if(!v){ $('keyMsg').textContent = '令牌不能为空'; return; }
+  TOKEN = v;
+  apiJson('/index/health', {}).then(function(r){
+    if(r && r.status === 'ok'){
+      localStorage.setItem('ta_token', v);
+      $('keyMsg').textContent = '';
+      closeMask('keyMask');
+      flash('令牌有效，已保存到本机浏览器', 'ok');
+      if(r.token_file) $('keyFileHint').textContent = r.token_file;
+      refreshAll();
+    } else {
+      $('keyMsg').textContent = '验证失败：' + ((r && r.message) || '未知错误');
+    }
+  }).catch(function(e){ $('keyMsg').textContent = String(e.message || e); });
+});
+
+/* ---------------- 标签页（含 URL hash 同步，移动端刷新不丢当前页） ---------------- */
+var TABS = ['overview','services','processes','files','terminal'];
+var current = 'overview';
+function switchTab(name, silent){
+  if(TABS.indexOf(name) < 0) name = 'overview';
+  current = name;
+  document.querySelectorAll('nav button').forEach(function(b){
+    b.classList.toggle('active', b.getAttribute('data-tab') === name);
+  });
+  document.querySelectorAll('.panel').forEach(function(p){
+    p.classList.toggle('active', p.id === 'tab-' + name);
+  });
+  if(!silent){
+    try{ history.replaceState(null, '', '#' + name); }catch(e){}
+  }
+  if(name === 'overview') loadOverview();
+  if(name === 'services') loadServices();
+  if(name === 'processes') loadProcesses();
+  if(name === 'files') loadFiles(state.fs.path || '');
+  if(name === 'terminal' && !state.term.presetsLoaded) loadPresets();
+}
+document.querySelectorAll('nav button').forEach(function(b){
+  b.addEventListener('click', function(){
+    switchTab(b.getAttribute('data-tab'));
+    window.scrollTo({top:0, behavior:'smooth'});
+  });
+});
+window.addEventListener('hashchange', function(){
+  var h = location.hash.replace('#','');
+  if(TABS.indexOf(h) >= 0 && h !== current) switchTab(h, true);
+});
+$('btnRefresh').addEventListener('click', refreshAll);
+
+function refreshAll(){
+  if(current === 'overview') loadOverview();
+  else if(current === 'services') loadServices();
+  else if(current === 'processes') loadProcesses();
+  else if(current === 'files') loadFiles(state.fs.path || '');
+}
+
+/* ---------------- 概览 ---------------- */
+function pct(n){ return Math.max(0, Math.min(100, Number(n) || 0)); }
+function barCls(p){
+  if(p >= 90) return 'bar-fill-red';
+  if(p >= 75) return 'bar-fill-orange';
+  return 'bar-fill-blue';
+}
+function setBar(barId, p){
+  var el = $(barId);
+  el.style.width = pct(p) + '%';
+  el.parentNode.className = 'bar ' + barCls(p);
+}
+
+function loadOverview(){
+  var deep = state.deep ? '?deep=1' : '';
+  api('/index/api/overview' + deep).then(function(d){
+    if(!d || d.status !== 'ok') { flash((d && d.message) || '读取失败', 'err'); return; }
+    var sys = d.system || {}, cpu = d.cpu || {}, mem = d.memory || {};
+    var bat = d.battery || {}, net = d.wifi || {}, temp = d.temperature || {};
+
+    $('hdot').className = 'dot ok';
+    $('hsub').textContent = (sys.model || 'device') + ' · Android ' + (sys.android || '?')
+      + ' · ' + (sys.time || '');
+
+    /* CPU —— 内核 cpufreq 频率计数器（Android 下 /proc/stat 不可读，top 恒为 0） */
+    var cl = cpu.clusters || [];
+    $('ovCpu').title = cl.length ? cl.map(function(c){
+      return c.name + '：活跃 ' + c.active + '%   非最低频占比 ' + c.busy + '%'
+        + '   平均 ' + c.avg_mhz + ' MHz / 峰 ' + c.max_mhz + ' MHz'
+        + '   空闲基准 ' + c.min_mhz + ' MHz（' + c.steps + ' 档）';
+    }).join('\n') : '';
+    if(cpu.usage == null){
+      $('ovCpu').textContent = '--';
+      $('ovCpuBar').style.width = '0%';
+      $('ovCpuDesc').textContent = cpu.note || '内核计数器不可读';
+    } else {
+      $('ovCpu').textContent = cpu.usage.toFixed(0) + '%';
+      setBar('ovCpuBar', cpu.usage);
+      var ld = String(cpu.load || sys.load || '-').split(',')[0].trim();
+      var frq = (cpu.freq || []).filter(function(x){ return x != null; });
+      $('ovCpuDesc').innerHTML = esc((cpu.cores || '?') + ' 核 · 负载 ' + ld)
+        + (frq.length ? ' · <span class="nowrap">均频 ' + esc(frq.join('/')) + ' MHz</span>' : '')
+        + (cpu.source === 'proc' ? ' · 仅 Termux' : '');
+    }
+
+    /* 内存 */
+    if(mem.total_mb){
+      $('ovMem').textContent = (mem.used_pct == null ? '--' : mem.used_pct.toFixed(1) + '%');
+      setBar('ovMemBar', mem.used_pct);
+      $('ovMemDesc').textContent = '已用 ' + (mem.used_mb/1024).toFixed(1) + 'G / 共 '
+        + (mem.total_mb/1024).toFixed(1) + 'G';
+    }
+
+    /* 存储 */
+    var main = (d.storage || [])[0];
+    if(main){
+      $('ovDisk').textContent = (main.used_pct == null ? '--' : main.used_pct.toFixed(0) + '%');
+      setBar('ovDiskBar', main.used_pct);
+      $('ovDiskDesc').textContent = '可用 ' + main.avail_h + ' / 共 ' + main.total_h;
+    }
+    var rows = (d.storage || []).map(function(s){
+      return '<tr><td class="mono c-main m-full">' + esc(s.mount) + '</td>'
+        + '<td class="num" data-label="容量">' + esc(s.total_h) + '</td>'
+        + '<td class="num" data-label="已用">' + esc(s.used_h) + '</td>'
+        + '<td class="num c-green" data-label="可用">' + esc(s.avail_h) + '</td>'
+        + '<td class="num' + ((s.used_pct||0) >= 90 ? ' c-red' : '') + '" data-label="占比">'
+        + (s.used_pct == null ? '-' : s.used_pct.toFixed(0) + '%') + '</td></tr>';
+    }).join('');
+    $('ovDiskRows').innerHTML = rows || '<tr><td colspan="5" class="empty">无数据</td></tr>';
+
+    if(d.disk_usage){
+      var du = Object.keys(d.disk_usage).map(function(k){
+        return '<div class="temp-chip"><span class="mono">' + esc(k) + '</span><b>' + esc(d.disk_usage[k]) + '</b></div>';
+      }).join('');
+      $('ovDu').innerHTML = '<div class="c-dim" style="font-size:11px;margin-bottom:7px">目录占用（du -sh）</div>'
+        + '<div class="term-grid">' + du + '</div>';
+    } else if(!$('ovDu').innerHTML){
+      $('ovDu').innerHTML = '';
+    }
+
+    /* 电池 */
+    if(bat.error){
+      $('ovBat').textContent = '--';
+      $('ovBatDesc').textContent = 'Termux:API 未安装';
+    } else {
+      $('ovBat').textContent = (bat.percentage != null ? bat.percentage : bat.level) + '%';
+      setBar('ovBatBar', bat.percentage != null ? bat.percentage : bat.level);
+      $('ovBatDesc').textContent = [bat.status, bat.plugged, bat.temperature != null ? bat.temperature + '°C' : '']
+        .filter(Boolean).join(' · ');
+    }
+
+    /* 系统信息 */
+    var kv = [
+      ['型号', sys.brand + ' ' + sys.model],
+      ['设备代号', sys.device || '-'],
+      ['Android', sys.android + ' (SDK ' + sys.sdk + ')'],
+      ['架构', sys.abi || '-'],
+      ['内核', sys.kernel || '-'],
+      ['主机名', sys.hostname || '-'],
+      ['运行时长', sys.uptime || '-'],
+      ['负载均值', sys.load || '-'],
+      ['Termux', (d.termux && d.termux.version) || '-'],
+      ['Python', (d.python && d.python.python) || '-'],
+      ['家目录', (d.termux && d.termux.home) || '-'],
+      ['前缀', (d.termux && d.termux.prefix) || '-']
+    ].map(function(p){
+      return '<dt>' + esc(p[0]) + '</dt><dd>' + esc(p[1]) + '</dd>';
+    }).join('');
+    $('ovSys').innerHTML = kv;
+
+    /* 温度 */
+    var g = temp.groups || {}, gk = Object.keys(g);
+    $('ovTempN').textContent = (temp.sensor_count || 0) + ' 个传感器 · 最高 '
+      + (temp.max == null ? '-' : temp.max + '°C');
+    $('ovTempGroups').innerHTML = gk.length ? gk.map(function(k){
+      var v = g[k];
+      var cls = v.max >= 60 ? 'c-red' : (v.max >= 45 ? 'c-orange' : 'c-green');
+      return '<div class="stat" style="padding:10px"><div class="lbl">' + esc(k) + '</div>'
+        + '<div class="val ' + cls + '" style="font-size:1.08rem">' + v.max + '°C</div>'
+        + '<div class="desc">均 ' + v.avg + '°C · ' + v.count + ' 点</div></div>';
+    }).join('') : '<div class="empty" style="grid-column:1/-1">无温度传感器数据</div>';
+    $('ovTempZones').innerHTML = (temp.zones || []).map(function(z){
+      var cls = z.celsius >= 60 ? 'c-red' : (z.celsius >= 45 ? 'c-orange' : 'c-dim');
+      return '<div class="temp-chip"><span class="mono">'
+        + esc(z.type) + '</span><b class="' + cls + '">' + z.celsius + '°C</b></div>';
+    }).join('');
+
+    /* 网络 */
+    var nk;
+    if(net.error){
+      nk = '<dt>状态</dt><dd class="c-dim">' + esc(net.error) + '</dd>';
+    } else {
+      nk = [
+        ['SSID', net.ssid], ['IP', net.ip], ['BSSID', net.bssid],
+        ['频段', net.frequency_mhz ? net.frequency_mhz + ' MHz' : '-'],
+        ['速率', net.link_speed_mbps ? net.link_speed_mbps + ' Mbps' : '-'],
+        ['信号', net.rssi != null ? net.rssi + ' dBm' : '-'],
+        ['MAC', net.mac_address]
+      ].map(function(p){
+        return '<dt>' + esc(p[0]) + '</dt><dd>' + esc(p[1] == null ? '-' : p[1]) + '</dd>';
+      }).join('');
+    }
+    $('ovNet').innerHTML = nk;
+
+    /* 服务概览 */
+    var ss = d.services_summary || {};
+    $('ovSvcN').textContent = '运行 ' + (ss.up||0) + ' / 共 ' + (ss.total||0);
+    var chips = (ss.up_names||[]).map(function(n){
+      return '<span class="tag up">' + esc(n) + '</span>';
+    }).concat((ss.down_names||[]).map(function(n){
+      return '<span class="tag down">' + esc(n) + '</span>';
+    })).join(' ');
+    $('ovSvcList').innerHTML = chips || '<span class="c-dim">未发现 runit 服务</span>';
+  }).catch(function(e){
+    $('hdot').className = 'dot bad';
+    $('hsub').textContent = String(e.message || e);
+  });
+}
+$('btnDeep').addEventListener('click', function(){
+  state.deep = !state.deep;
+  this.classList.toggle('on', state.deep);
+  this.textContent = state.deep ? '隐藏目录占用' : '含目录占用';
+  loadOverview();
+});
+
+/* ---------------- 服务 ---------------- */
+function stateTag(s){
+  if(s === 'up') return '<span class="tag up">运行中</span>';
+  if(s === 'down') return '<span class="tag down">已停止</span>';
+  if(s === 'fail') return '<span class="tag fail">失败</span>';
+  return '<span class="tag off">' + esc(s) + '</span>';
+}
+function svcBtn(name, action, label, cls){
+  return '<button class="btn ' + (cls||'') + '" data-svc="' + esc(name) + '" data-act="'
+    + action + '">' + label + '</button>';
+}
+function loadServices(){
+  api('/index/api/services').then(function(d){
+    if(!d || d.status !== 'ok'){ flash((d && d.message) || '读取失败', 'err'); return; }
+    $('svDir').textContent = d.svdir || '';
+    var list = d.services || [];
+    $('svRows').innerHTML = list.length ? list.map(function(s){
+      return '<tr><td class="c-main m-full"><b>' + esc(s.name) + '</b></td>'
+        + '<td data-label="状态">' + stateTag(s.state) + '</td>'
+        + '<td class="num mono" data-label="PID">' + (s.pid || '-') + '</td>'
+        + '<td class="num" data-label="运行">' + (s.age == null ? '-' : s.age + 's') + '</td>'
+        + '<td data-label="开机">' + (s.autostart ? '<span class="tag on">自启</span>' : '<span class="tag off">手动</span>') + '</td>'
+        + '<td class="act m-full">'
+        + svcBtn(s.name, 'start', '启动', 'ok')
+        + svcBtn(s.name, 'stop', '停止')
+        + svcBtn(s.name, 'restart', '重启')
+        + svcBtn(s.name, 'log', '日志')
+        + '</td></tr>';
+    }).join('') : '<tr><td colspan="6" class="empty">未发现 runit 服务</td></tr>';
+
+    var sel = $('logSvc'), keep = sel.value;
+    sel.innerHTML = list.map(function(s){
+      return '<option value="' + esc(s.name) + '">' + esc(s.name) + '</option>';
+    }).join('');
+    if(keep) sel.value = keep;
+  }).catch(function(e){ flash(String(e.message || e), 'err'); });
+}
+$('svReload').addEventListener('click', loadServices);
+
+$('svRows').addEventListener('click', function(e){
+  var b = e.target.closest('button[data-svc]');
+  if(!b) return;
+  var name = b.getAttribute('data-svc'), act = b.getAttribute('data-act');
+  if(act === 'log'){
+    $('logSvc').value = name;
+    switchTab('services');
+    loadServiceLog();
+    return;
+  }
+  var tip = act === 'stop' ? ('确认停止服务 ' + name + ' ？') : null;
+  if(tip && !confirm(tip)) return;
+  b.disabled = true;
+  var old = b.textContent;
+  b.textContent = '…';
+  apiJson('/index/api/services/action', {name: name, action: act}).then(function(r){
+    b.disabled = false; b.textContent = old;
+    if(r && r.status === 'ok'){
+      flash(name + ' ' + act + ' → ' + r.state, r.state === 'up' ? 'ok' : '');
+      loadServices();
+    } else {
+      flash((r && r.message) || '操作失败', 'err');
+    }
+  }).catch(function(e){ b.disabled = false; b.textContent = old; flash(String(e.message || e), 'err'); });
+});
+
+var logTimer = null;
+function loadServiceLog(){
+  var name = $('logSvc').value;
+  if(!name) return;
+  var lines = $('logLines').value || 200;
+  api('/index/api/services/log?name=' + encodeURIComponent(name) + '&lines=' + encodeURIComponent(lines))
+    .then(function(d){
+      if(!d) return;
+      var head = d.path ? ('# ' + d.path + '  (' + (d.size_h || '') + ')\n\n') : '';
+      if(d.status !== 'ok' && d.message && !(d.lines||[]).length){
+        $('svLog').textContent = d.message;
+        return;
+      }
+      if(d.message && !(d.lines||[]).length){ $('svLog').textContent = d.message; return; }
+      $('svLog').textContent = head + (d.lines || []).join('\n') || '(日志为空)';
+      $('svLog').scrollTop = $('svLog').scrollHeight;
+    }).catch(function(e){ $('svLog').textContent = String(e.message || e); });
+}
+$('logLoad').addEventListener('click', loadServiceLog);
+$('logAuto').addEventListener('click', function(){
+  if(logTimer){ clearInterval(logTimer); logTimer = null; this.textContent = '自动: 关'; this.classList.remove('on'); }
+  else { logTimer = setInterval(loadServiceLog, 4000); this.textContent = '自动: 开'; this.classList.add('on'); loadServiceLog(); }
+});
+
+/* ---------------- 进程 ---------------- */
+function loadProcesses(){
+  var sort = $('psSort').value, q = $('psFilter').value.trim();
+  $('psRows').innerHTML = skel(9);
+  api('/index/api/processes?sort=' + encodeURIComponent(sort) + '&limit=60&q=' + encodeURIComponent(q))
+    .then(function(d){
+      if(!d || d.status !== 'ok'){ flash((d && d.message) || '读取失败', 'err'); return; }
+      var list = d.processes || [];
+      $('psRows').innerHTML = list.length ? list.map(function(p){
+        var hot = p.cpu >= 30 ? ' c-red' : (p.cpu >= 10 ? ' c-orange' : '');
+        var isSelf = (p.pid === d.self_pid);
+        return '<tr>'
+          + '<td class="num mono" data-label="PID">' + p.pid
+          + (isSelf ? ' <span class="tag on">本页</span>' : '') + '</td>'
+          + '<td class="m-hide">' + esc(p.user) + '</td>'
+          + '<td class="num' + hot + '" data-label="CPU %">' + p.cpu.toFixed(1) + '</td>'
+          + '<td class="num" data-label="内存 %">' + p.mem.toFixed(1) + '</td>'
+          + '<td class="num" data-label="RSS">' + esc(p.rss_h) + '</td>'
+          + '<td class="mono" data-label="状态">' + esc(p.stat) + '</td>'
+          + '<td data-label="运行">' + esc(p.etime) + '</td>'
+          + '<td class="mono cmd-cell m-full" title="' + esc(p.args) + '">' + esc(p.args) + '</td>'
+          + '<td class="act m-full">'
+          + '<button class="btn danger" data-kill="' + p.pid + '">结束</button>'
+          + '<button class="btn" data-pinfo="' + p.pid + '">详情</button></td></tr>';
+      }).join('') : '<tr><td colspan="9" class="empty">无匹配进程</td></tr>';
+    }).catch(function(e){ flash(String(e.message || e), 'err'); });
+}
+$('psReload').addEventListener('click', loadProcesses);
+$('psSort').addEventListener('change', loadProcesses);
+var psFilterTimer = null;
+$('psFilter').addEventListener('input', function(){
+  clearTimeout(psFilterTimer);
+  psFilterTimer = setTimeout(loadProcesses, 350);
+});
+$('psRows').addEventListener('click', function(e){
+  var k = e.target.closest('button[data-kill]');
+  if(k){
+    var pid = k.getAttribute('data-kill');
+    if(!confirm('确认结束进程 ' + pid + ' ？\n默认发送 SIGTERM（优雅退出）。')) return;
+    apiJson('/index/api/process/kill', {pid: Number(pid), signal: 'TERM'}).then(function(r){
+      if(r && r.status === 'ok'){
+        flash('已发送 SIGTERM → pid ' + pid + (r.alive ? '（仍在运行，可改用 SIGKILL）' : '（已退出）'),
+              r.alive ? '' : 'ok');
+        setTimeout(loadProcesses, 700);
+      } else {
+        if(r && r.message && confirm(r.message + '\n\n改用 SIGKILL 强制结束？'))
+          apiJson('/index/api/process/kill', {pid: Number(pid), signal: 'KILL'}).then(function(){
+            setTimeout(loadProcesses, 700);
+          });
+        else flash((r && r.message) || '操作失败', 'err');
+      }
+    });
+    return;
+  }
+  var i = e.target.closest('button[data-pinfo]');
+  if(i){
+    var p = i.getAttribute('data-pinfo');
+    api('/index/api/processes?limit=500').then(function(d){
+      var f = (d.processes || []).filter(function(x){ return String(x.pid) === p; })[0];
+      if(!f){ flash('进程已不存在', 'err'); return; }
+      $('outTitle').textContent = '进程详情 · PID ' + f.pid;
+      $('outBody').textContent = [
+        'PID      : ' + f.pid, 'PPID     : ' + f.ppid, '用户     : ' + f.user,
+        'CPU      : ' + f.cpu + '%', '内存     : ' + f.mem + '% (RSS ' + f.rss_h + ')',
+        '状态     : ' + f.stat, '运行时长 : ' + f.etime, '',
+        '命令     : ' + f.args
+      ].join('\n');
+      openMask('outMask');
+    });
+  }
+});
+
+/* ---------------- 文件 ---------------- */
+var state = { fs:{ path:'', hidden:false, entries:[], parent:null },
+              term:{ presetsLoaded:false, cwd:'', history:[], hi:-1 },
+              deep:false };
+
+function loadFiles(path){
+  var q = '/index/api/fs/list?hidden=' + (state.fs.hidden ? 1 : 0)
+        + (path ? '&path=' + encodeURIComponent(path) : '');
+  $('fRows').innerHTML = skel(6);
+  api(q).then(function(d){
+    if(!d || d.status !== 'ok'){
+      $('fRows').innerHTML = '<tr><td colspan="6" class="empty c-red">'
+        + esc((d && d.message) || '读取失败') + '</td></tr>';
+      return;
+    }
+    state.fs.path = d.path;
+    state.fs.parent = d.parent;
+    state.fs.entries = d.entries || [];
+    $('fPath').value = d.path;
+    $('fInfo').textContent = (d.counts ? (d.counts.dirs + ' 目录 / ' + d.counts.files + ' 文件') : '')
+      + ' · 可用 ' + (d.free_h || '?') + (d.writable ? '' : ' · 只读');
+    renderCrumbs(d.path);
+    renderFiles();
+  }).catch(function(e){
+    $('fRows').innerHTML = '<tr><td colspan="6" class="empty c-red">' + esc(String(e.message||e)) + '</td></tr>';
+  });
+}
+function renderCrumbs(p){
+  var parts = String(p).split('/').filter(Boolean);
+  var html = '<a data-goto="/">/</a>';
+  var acc = '';
+  parts.forEach(function(seg){
+    acc += '/' + seg;
+    html += '<span class="sep">›</span><a data-goto="' + esc(acc) + '">' + esc(seg) + '</a>';
+  });
+  $('fCrumbs').innerHTML = html;
+}
+function iconOf(e){
+  if(e.is_dir) return '📁';
+  if(e.is_link) return '🔗';
+  var x = e.ext || '';
+  if(['.png','.jpg','.jpeg','.gif','.webp','.svg','.ico','.bmp'].indexOf(x) >= 0) return '🖼';
+  if(['.mp4','.mkv','.avi','.mov','.webm','.ts','.m3u8'].indexOf(x) >= 0) return '🎬';
+  if(['.mp3','.wav','.flac','.m4a','.ogg','.aac'].indexOf(x) >= 0) return '🎵';
+  if(['.zip','.gz','.tgz','.tar','.7z','.rar','.xz','.bz2'].indexOf(x) >= 0) return '📦';
+  if(['.apk','.exe','.deb'].indexOf(x) >= 0) return '⚙';
+  if(e.editable) return '📄';
+  return '📃';
+}
+function renderFiles(){
+  var list = state.fs.entries || [];
+  if(!list.length){ $('fRows').innerHTML = '<tr><td colspan="6" class="empty">空目录</td></tr>'; return; }
+  $('fRows').innerHTML = list.map(function(e, idx){
+    var nameHtml = '<span style="margin-right:7px">' + iconOf(e) + '</span>'
+      + '<span class="mono" style="word-break:break-all">' + esc(e.name) + '</span>'
+      + (e.is_link ? ' <span class="tag off">→ ' + esc(e.link_target) + '</span>' : '');
+    var link = e.is_dir
+      ? '<a data-goto="' + esc(e.path) + '">' + nameHtml + '</a>'
+      : (e.editable ? '<a data-edit="' + idx + '">' + nameHtml + '</a>' : nameHtml);
+    return '<tr>'
+      + '<td class="c-chk"><input type="checkbox" class="fchk" data-i="' + idx + '"></td>'
+      + '<td class="c-main m-full">' + link + '</td>'
+      + '<td class="num" data-label="大小">' + (e.is_dir ? '-' : esc(e.size_h)) + '</td>'
+      + '<td class="nowrap" data-label="修改时间">' + esc(e.mtime_h) + '</td>'
+      + '<td class="num mono" data-label="权限">' + esc(e.mode) + '</td>'
+      + '<td class="act m-full">'
+      + (e.is_dir ? '' : '<a class="btn" href="' + dl('/index/api/fs/download?path=' + encodeURIComponent(e.path)) + '">下载</a>')
+      + (e.is_dir ? '<button class="btn" data-pack="' + idx + '">打包</button>' : '')
+      + (/\.(tar\.gz|tgz|tar|zip|gz)$/i.test(e.name) ? '<button class="btn" data-unpack="' + idx + '">解压</button>' : '')
+      + '<button class="btn" data-ren="' + idx + '">改名</button>'
+      + '<button class="btn" data-chm="' + idx + '">权限</button>'
+      + '<button class="btn danger" data-del="' + idx + '">删除</button>'
+      + '</td></tr>';
+  }).join('');
+}
+
+$('fCrumbs').addEventListener('click', function(e){
+  var a = e.target.closest('a[data-goto]');
+  if(a) loadFiles(a.getAttribute('data-goto'));
+});
+$('fRows').addEventListener('click', function(e){
+  var g = e.target.closest('a[data-goto]');
+  if(g){ loadFiles(g.getAttribute('data-goto')); return; }
+  var ed = e.target.closest('a[data-edit]');
+  if(ed){ openEditor(state.fs.entries[Number(ed.getAttribute('data-edit'))]); return; }
+  var del = e.target.closest('button[data-del]');
+  if(del){
+    var en = state.fs.entries[Number(del.getAttribute('data-del'))];
+    if(!confirm('确认删除？\n' + en.path + (en.is_dir ? '\n（目录及其全部内容，不可恢复）' : ''))) return;
+    apiJson('/index/api/fs/delete', {paths: [en.path]}).then(function(r){
+      var f = (r.results || [])[0] || {};
+      flash(f.ok ? '已删除 ' + en.name : ('删除失败：' + (f.error || '')), f.ok ? 'ok' : 'err');
+      loadFiles(state.fs.path);
+    });
+    return;
+  }
+  var pack = e.target.closest('button[data-pack]');
+  if(pack){
+    var pe = state.fs.entries[Number(pack.getAttribute('data-pack'))];
+    ask('打包为 tar.gz', '包名（留空则用 ' + pe.name + '.tar.gz）', '', function(v){
+      apiJson('/index/api/fs/pack', {path: pe.path, name: v || ''}).then(function(r){
+        flash(r.status === 'ok' ? ('已生成 ' + r.archive + '（' + r.size_h + '）') : (r.message || '失败'),
+              r.status === 'ok' ? 'ok' : 'err');
+        loadFiles(state.fs.path);
+      });
+    });
+    return;
+  }
+  var un = e.target.closest('button[data-unpack]');
+  if(un){
+    var ue = state.fs.entries[Number(un.getAttribute('data-unpack'))];
+    if(!confirm('解压到同目录下的独立文件夹？\n' + ue.path)) return;
+    apiJson('/index/api/fs/unpack', {path: ue.path}).then(function(r){
+      flash(r.status === 'ok' ? ('已解压到 ' + r.dest) : (r.message || '失败'),
+            r.status === 'ok' ? 'ok' : 'err');
+      loadFiles(state.fs.path);
+    });
+    return;
+  }
+  var rn = e.target.closest('button[data-ren]');
+  if(rn){
+    var re2 = state.fs.entries[Number(rn.getAttribute('data-ren'))];
+    ask('重命名', '新名称', re2.name, function(v){
+      if(!v || v === re2.name) return;
+      apiJson('/index/api/fs/rename', {path: re2.path, name: v}).then(function(r){
+        flash(r.status === 'ok' ? '已重命名' : (r.message || '失败'), r.status === 'ok' ? 'ok' : 'err');
+        loadFiles(state.fs.path);
+      });
+    });
+    return;
+  }
+  var cm = e.target.closest('button[data-chm]');
+  if(cm){
+    var ce = state.fs.entries[Number(cm.getAttribute('data-chm'))];
+    ask('修改权限 (chmod)', '八进制，如 755 / 644 / 600', ce.mode, function(v){
+      apiJson('/index/api/fs/chmod', {path: ce.path, mode: v}).then(function(r){
+        flash(r.status === 'ok' ? ('权限已设为 ' + v) : (r.message || '失败'), r.status === 'ok' ? 'ok' : 'err');
+        loadFiles(state.fs.path);
+      });
+    });
+  }
+});
+$('fAll').addEventListener('change', function(){
+  document.querySelectorAll('.fchk').forEach(function(c){ c.checked = $('fAll').checked; });
+});
+$('fGo').addEventListener('click', function(){ loadFiles($('fPath').value.trim()); });
+$('fPath').addEventListener('keydown', function(e){ if(e.key === 'Enter') loadFiles(this.value.trim()); });
+$('fReload').addEventListener('click', function(){ loadFiles(state.fs.path); });
+$('fUp').addEventListener('click', function(){ if(state.fs.parent) loadFiles(state.fs.parent); });
+$('fHome').addEventListener('click', function(){ loadFiles(''); });
+$('fHidden').addEventListener('click', function(){
+  state.fs.hidden = !state.fs.hidden;
+  this.classList.toggle('on', state.fs.hidden);
+  this.textContent = state.fs.hidden ? '隐藏: 开' : '隐藏: 关';
+  loadFiles(state.fs.path);
+});
+$('fMkdir').addEventListener('click', function(){
+  ask('新建文件夹', '名称', '新建文件夹', function(v){
+    apiJson('/index/api/fs/mkdir', {path: state.fs.path, name: v}).then(function(r){
+      flash(r.status === 'ok' ? '已创建文件夹' : (r.message || '失败'), r.status === 'ok' ? 'ok' : 'err');
+      loadFiles(state.fs.path);
+    });
+  });
+});
+$('fMkfile').addEventListener('click', function(){
+  ask('新建文件', '名称（含扩展名）', 'new.txt', function(v){
+    apiJson('/index/api/fs/mkfile', {path: state.fs.path, name: v}).then(function(r){
+      flash(r.status === 'ok' ? '已创建文件' : (r.message || '失败'), r.status === 'ok' ? 'ok' : 'err');
+      loadFiles(state.fs.path);
+    });
+  });
+});
+$('fDelSel').addEventListener('click', function(){
+  var paths = [];
+  document.querySelectorAll('.fchk:checked').forEach(function(c){
+    var e = state.fs.entries[Number(c.getAttribute('data-i'))];
+    if(e) paths.push(e.path);
+  });
+  if(!paths.length){ flash('未选中任何条目', 'err'); return; }
+  if(!confirm('确认删除选中的 ' + paths.length + ' 项？\n\n' + paths.join('\n'))) return;
+  apiJson('/index/api/fs/delete', {paths: paths}).then(function(r){
+    flash('成功 ' + r.ok_count + ' 项，失败 ' + r.fail_count + ' 项', r.fail_count ? 'err' : 'ok');
+    loadFiles(state.fs.path);
+  });
+});
+$('fUploadBtn').addEventListener('click', function(){ $('fUpload').click(); });
+$('fUpload').addEventListener('change', function(){
+  var files = this.files;
+  if(!files || !files.length) return;
+  var fd = new FormData();
+  fd.append('path', state.fs.path);
+  for(var i = 0; i < files.length; i++) fd.append('files', files[i]);
+  flash('上传中…（' + files.length + ' 个文件）');
+  fetch(dl('/index/api/fs/upload'), {method:'POST', body: fd, headers:{'X-Admin-Token': TOKEN}})
+    .then(function(r){ return r.json(); })
+    .then(function(r){
+      if(r && r.status === 'ok'){
+        flash('上传完成：成功 ' + r.ok_count + ' 个，失败 ' + r.fail_count + ' 个', r.fail_count ? 'err' : 'ok');
+        loadFiles(state.fs.path);
+      } else flash((r && r.message) || '上传失败', 'err');
+    }).catch(function(e){ flash('上传失败：' + e.message, 'err'); });
+  this.value = '';
+});
+
+/* 编辑器 */
+var editing = null;
+function openEditor(entry){
+  api('/index/api/fs/read?path=' + encodeURIComponent(entry.path)).then(function(d){
+    if(!d || d.status !== 'ok'){ flash((d && d.message) || '读取失败', 'err'); return; }
+    editing = entry;
+    $('editTitle').textContent = entry.path;
+    $('editInfo').textContent = d.size_h + ' · 权限 ' + d.mode;
+    $('editBody').value = d.content;
+    openMask('editMask');
+  });
+}
+$('editSave').addEventListener('click', function(){
+  if(!editing) return;
+  var b = this; b.disabled = true; b.textContent = '保存中…';
+  apiJson('/index/api/fs/write', {path: editing.path, content: $('editBody').value}).then(function(r){
+    b.disabled = false; b.textContent = '保存';
+    if(r.status === 'ok'){
+      flash('已保存（' + r.bytes + ' 字节）' + (r.backup ? '，原文件备份为 *.ta-bak' : ''), 'ok');
+      closeMask('editMask');
+      loadFiles(state.fs.path);
+    } else flash(r.message || '保存失败', 'err');
+  }).catch(function(e){ b.disabled = false; b.textContent = '保存'; flash(String(e.message||e), 'err'); });
+});
+$('editDownload').addEventListener('click', function(){
+  if(editing) location.href = dl('/index/api/fs/download?path=' + encodeURIComponent(editing.path));
+});
+
+/* ---------------- 终端 ---------------- */
+function loadPresets(){
+  api('/index/api/presets').then(function(d){
+    if(!d || d.status !== 'ok') return;
+    state.term.presetsLoaded = true;
+    var html = '';
+    (d.groups || []).forEach(function(g){
+      html += '<div style="grid-column:1/-1;font-size:10.5px;color:var(--dim);text-transform:uppercase;'
+        + 'letter-spacing:.7px;font-weight:700;margin:6px 0 -2px">' + esc(g.name) + '</div>';
+      g.items.forEach(function(p){
+        html += '<button class="btn preset" data-cmd="' + esc(p.cmd) + '">' + esc(p.label) + '</button>';
+      });
+    });
+    $('tPresets').innerHTML = html;
+    $('tCwd').value = d.cwd || '';
+  });
+}
+$('tPresets').addEventListener('click', function(e){
+  var b = e.target.closest('button[data-cmd]');
+  if(!b) return;
+  $('tCmd').value = b.getAttribute('data-cmd');
+  $('tCmd').focus();
+});
+function termWrite(html){
+  var out = $('termOut');
+  if(out.dataset.fresh !== '1'){ out.innerHTML = ''; out.dataset.fresh = '1'; }
+  var div = document.createElement('div');
+  div.innerHTML = html;
+  out.appendChild(div);
+  out.scrollTop = out.scrollHeight;
+}
+function runCmd(){
+  var cmd = $('tCmd').value.trim();
+  if(!cmd) return;
+  state.term.history.push(cmd);
+  state.term.hi = state.term.history.length;
+  var cwd = $('tCwd').value.trim();
+  var to = Number($('tTimeout').value) || 30;
+  termWrite('<span class="cmd">$ ' + esc(cmd) + '</span>');
+  var btn = $('tRun'); btn.disabled = true; btn.textContent = '执行中…';
+  var t0 = Date.now();
+  apiJson('/index/api/exec', {cmd: cmd, cwd: cwd, timeout: to}).then(function(r){
+    btn.disabled = false; btn.textContent = '执行';
+    if(!r || r.status !== 'ok'){
+      termWrite('<span class="rcn">✗ ' + esc((r && r.message) || '执行失败') + '</span>\n');
+      return;
+    }
+    var body = '';
+    if(r.stdout) body += esc(r.stdout);
+    if(r.stderr) body += '<span class="err">' + esc(r.stderr) + '</span>';
+    if(!body) body = '<span class="c-dim">(无输出)</span>\n';
+    var rcCls = r.rc === 0 ? 'rc0' : 'rcn';
+    termWrite(body + '\n<span class="' + rcCls + '">↳ 退出码 ' + r.rc
+      + ' · ' + (r.ms || (Date.now()-t0)) + ' ms</span>\n');
+  }).catch(function(e){
+    btn.disabled = false; btn.textContent = '执行';
+    termWrite('<span class="rcn">✗ ' + esc(String(e.message || e)) + '</span>\n');
+  });
+}
+$('tRun').addEventListener('click', runCmd);
+$('tCmd').addEventListener('keydown', function(e){
+  if(e.key === 'Enter'){ runCmd(); return; }
+  if(e.key === 'ArrowUp' && state.term.history.length){
+    state.term.hi = Math.max(0, state.term.hi - 1);
+    this.value = state.term.history[state.term.hi] || '';
+    e.preventDefault();
+  }
+  if(e.key === 'ArrowDown'){
+    state.term.hi = Math.min(state.term.history.length, state.term.hi + 1);
+    this.value = state.term.history[state.term.hi] || '';
+    e.preventDefault();
+  }
+});
+$('tClear').addEventListener('click', function(){
+  var out = $('termOut'); out.dataset.fresh = '1';
+  out.innerHTML = '<span class="c-dim">已清屏</span>';
+});
+
+/* ---------------- 通用输入弹窗 ---------------- */
+var askCb = null;
+function ask(title, desc, def, cb){
+  $('askTitle').textContent = title;
+  $('askDesc').textContent = desc || '';
+  $('askInput').value = def || '';
+  askCb = cb;
+  openMask('askMask');
+  setTimeout(function(){ $('askInput').focus(); $('askInput').select(); }, 60);
+}
+$('askOk').addEventListener('click', function(){
+  var v = $('askInput').value.trim();
+  var cb = askCb; askCb = null;
+  closeMask('askMask');
+  if(cb) cb(v);
+});
+$('askInput').addEventListener('keydown', function(e){
+  if(e.key === 'Enter') $('askOk').click();
+});
+
+/* ---------------- 启动 ---------------- */
+apiJson('/index/health', {}).then(function(r){
+  if(!r || r.status !== 'ok'){ needKey(); return; }
+  if(r.token_file) $('keyFileHint').textContent = r.token_file;
+  if(qs.get('token')) localStorage.setItem('ta_token', qs.get('token'));
+  var h = location.hash.replace('#', '');
+  /* 概览永远先拉一次：顶栏的在线状态 / 机型 / 时间都来自它，
+     否则从 #files 之类的深链接进入时顶栏会一直停在「连接中…」 */
+  loadOverview();
+  if(h && h !== 'overview' && TABS.indexOf(h) >= 0) switchTab(h, true);
+}).catch(function(){ needKey(); });
+
+})();
+</script>
+</body>
+</html>

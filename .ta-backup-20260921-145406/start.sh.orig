@@ -2,10 +2,10 @@
 #
 # start.sh - Flask 应用一键守护脚本（含崩溃自重启）
 # 用法:
-#   ./start.sh start     # 后台启动（崩溃自动重启）；端口已被占用会直接拒绝，不会刷屏重试
+#   ./start.sh start     # 后台启动（崩溃自动重启）
 #   ./start.sh stop      # 停止
 #   ./start.sh restart   # 重启
-#   ./start.sh status    # 查看状态（同时显示 runit 托管状态）
+#   ./start.sh status    # 查看状态
 #   ./start.sh logs      # 跟踪日志
 #
 set -o pipefail
@@ -45,28 +45,6 @@ is_running() {
   [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null
 }
 
-# ---------- 端口占用检测 ----------
-# 为什么需要它：当 runit(termux-services) 已经在托管 mysite 时，如果又手动跑一次
-# `bash start.sh start`，守护循环里的 python 会因为 8000 已被占用而立刻退出，
-# 接着 sleep 3 再拉起来 —— 退化成「每 3 秒启动一个 Python 进程并失败」的死循环：
-#   * mysite.log 以约 10MB/天 的速率刷 "Address already in use"
-#   * CPU 被反复唤醒、无法进入深睡，手机持续微热
-# 所以在入口先拦一道，不做无声的失败重试。
-port_in_use() {
-  python3 - "$PORT" 2>/dev/null <<'PY'
-import socket, sys
-s = socket.socket()
-s.settimeout(1.0)
-try:
-    s.connect(('127.0.0.1', int(sys.argv[1])))
-except OSError:
-    sys.exit(1)
-finally:
-    s.close()
-sys.exit(0)
-PY
-}
-
 # ---------- 准备运行环境（venv + 依赖） ----------
 ensure_env() {
   if [ ! -d "$VENV_DIR" ]; then
@@ -84,16 +62,6 @@ start() {
   if is_running; then
     log "已在运行 (PID $(cat "$PID_FILE"))"
     return 0
-  fi
-
-  if port_in_use; then
-    err "端口 $PORT 已被占用，拒绝启动（否则会退化成每 3 秒重启失败一次的刷屏死循环）"
-    echo "    大概率是 runit 已经在托管 mysite，查一下："
-    echo "        sv status mysite      # 查看托管状态"
-    echo "        sv restart mysite     # 重启服务（推荐）"
-    echo "        sv down mysite        # 先腾出端口，再回来跑 start.sh"
-    echo "    或者换端口：PORT=8010 bash $0 start"
-    return 1
   fi
 
   ensure_env
@@ -169,16 +137,13 @@ stop() {
 # ---------- 状态 ----------
 status() {
   if is_running; then
-    log "start.sh 守护进程运行中 (PID $(cat "$PID_FILE"))"
+    log "运行中 (PID $(cat "$PID_FILE"))"
+    if command -v curl >/dev/null 2>&1; then
+      code=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${PORT}/" 2>/dev/null || echo "无法连接")
+      echo "    HTTP / -> $code"
+    fi
   else
-    warn "start.sh 守护进程未运行"
-  fi
-  if command -v sv >/dev/null 2>&1; then
-    echo "    runit: $(sv status mysite 2>&1 | head -1)"
-  fi
-  if is_running && command -v curl >/dev/null 2>&1; then
-    code=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${PORT}/" 2>/dev/null || echo "无法连接")
-    echo "    HTTP / -> $code"
+    warn "未运行"
   fi
 }
 

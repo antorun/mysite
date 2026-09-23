@@ -1,0 +1,223 @@
+/* ---------------- 概览 ---------------- */
+function pct(n){ return Math.max(0, Math.min(100, Number(n) || 0)); }
+function barCls(p){
+  if(p >= 90) return 'bar-fill-red';
+  if(p >= 75) return 'bar-fill-orange';
+  return 'bar-fill-blue';
+}
+function setBar(barId, p){
+  var el = $(barId);
+  el.style.width = pct(p) + '%';
+  el.parentNode.className = 'bar ' + barCls(p);
+}
+
+function loadOverview(){
+  var deep = state.deep ? '?deep=1' : '';
+  api('/index/api/overview' + deep).then(function(d){
+    if(!d || d.status !== 'ok') { flash((d && d.message) || '读取失败', 'err'); return; }
+    var sys = d.system || {}, cpu = d.cpu || {}, mem = d.memory || {};
+    var bat = d.battery || {}, net = d.wifi || {}, temp = d.temperature || {};
+
+    $('hdot').className = 'dot ok';
+    $('hsub').textContent = (sys.model || 'device') + ' · Android ' + (sys.android || '?')
+      + ' · ' + (sys.time || '');
+    var sh = $('sbHost');
+    if(sh) sh.textContent = (sys.model || 'device') + ' · Android ' + (sys.android || '?');
+
+    /* CPU —— 内核 cpufreq 频率计数器（Android 下 /proc/stat 不可读，top 恒为 0） */
+    var cl = cpu.clusters || [];
+    $('ovCpu').title = cl.length ? cl.map(function(c){
+      return c.name + '：活跃 ' + c.active + '%   非最低频占比 ' + c.busy + '%'
+        + '   平均 ' + c.avg_mhz + ' MHz / 峰 ' + c.max_mhz + ' MHz'
+        + '   空闲基准 ' + c.min_mhz + ' MHz（' + c.steps + ' 档）';
+    }).join('\n') : '';
+    if(cpu.usage == null){
+      $('ovCpu').textContent = '--';
+      $('ovCpuBar').style.width = '0%';
+      $('ovCpuDesc').textContent = cpu.note || '内核计数器不可读';
+    } else {
+      $('ovCpu').textContent = cpu.usage.toFixed(0) + '%';
+      setBar('ovCpuBar', cpu.usage);
+      var ld = String(cpu.load || sys.load || '-').split(',')[0].trim();
+      var frq = (cpu.freq || []).filter(function(x){ return x != null; });
+      $('ovCpuDesc').innerHTML = esc((cpu.cores || '?') + ' 核 · 负载 ' + ld)
+        + (frq.length ? ' · <span class="nowrap">均频 ' + esc(frq.join('/')) + ' MHz</span>' : '')
+        + (cpu.source === 'proc' ? ' · 仅 Termux' : '');
+    }
+
+    /* 内存 */
+    if(mem.total_mb){
+      $('ovMem').textContent = (mem.used_pct == null ? '--' : mem.used_pct.toFixed(1) + '%');
+      setBar('ovMemBar', mem.used_pct);
+      $('ovMemDesc').textContent = '已用 ' + (mem.used_mb/1024).toFixed(1) + 'G / 共 '
+        + (mem.total_mb/1024).toFixed(1) + 'G';
+    }
+
+    /* 存储 */
+    var main = (d.storage || [])[0];
+    if(main){
+      $('ovDisk').textContent = (main.used_pct == null ? '--' : main.used_pct.toFixed(0) + '%');
+      setBar('ovDiskBar', main.used_pct);
+      $('ovDiskDesc').textContent = '可用 ' + main.avail_h + ' / 共 ' + main.total_h;
+    }
+    var rows = (d.storage || []).map(function(s){
+      return '<tr><td class="mono c-main m-full">' + esc(s.mount) + '</td>'
+        + '<td class="num" data-label="容量">' + esc(s.total_h) + '</td>'
+        + '<td class="num" data-label="已用">' + esc(s.used_h) + '</td>'
+        + '<td class="num c-green" data-label="可用">' + esc(s.avail_h) + '</td>'
+        + '<td class="num' + ((s.used_pct||0) >= 90 ? ' c-red' : '') + '" data-label="占比">'
+        + (s.used_pct == null ? '-' : s.used_pct.toFixed(0) + '%') + '</td></tr>';
+    }).join('');
+    $('ovDiskRows').innerHTML = rows || '<tr><td colspan="5" class="empty">无数据</td></tr>';
+
+    if(d.disk_usage){
+      var du = Object.keys(d.disk_usage).map(function(k){
+        return '<div class="temp-chip"><span class="mono">' + esc(k) + '</span><b>' + esc(d.disk_usage[k]) + '</b></div>';
+      }).join('');
+      $('ovDu').innerHTML = '<div class="c-dim" style="font-size:11px;margin-bottom:7px">目录占用（du -sh）</div>'
+        + '<div class="term-grid">' + du + '</div>';
+    } else if(!$('ovDu').innerHTML){
+      $('ovDu').innerHTML = '';
+    }
+
+    /* 电池 */
+    if(bat.error){
+      $('ovBat').textContent = '--';
+      $('ovBatDesc').textContent = 'Termux:API 未安装';
+    } else {
+      $('ovBat').textContent = (bat.percentage != null ? bat.percentage : bat.level) + '%';
+      setBar('ovBatBar', bat.percentage != null ? bat.percentage : bat.level);
+      $('ovBatDesc').textContent = [bat.status, bat.plugged, bat.temperature != null ? bat.temperature + '°C' : '']
+        .filter(Boolean).join(' · ');
+    }
+
+    /* 系统信息 */
+    var kv = [
+      ['型号', sys.brand + ' ' + sys.model],
+      ['设备代号', sys.device || '-'],
+      ['Android', sys.android + ' (SDK ' + sys.sdk + ')'],
+      ['架构', sys.abi || '-'],
+      ['内核', sys.kernel || '-'],
+      ['主机名', sys.hostname || '-'],
+      ['运行时长', sys.uptime || '-'],
+      ['负载均值', sys.load || '-'],
+      ['Termux', (d.termux && d.termux.version) || '-'],
+      ['Python', (d.python && d.python.python) || '-'],
+      ['家目录', (d.termux && d.termux.home) || '-'],
+      ['前缀', (d.termux && d.termux.prefix) || '-']
+    ].map(function(p){
+      /* 运行时长挂 id，交给 ovClockInit() 每秒自增 */
+      var id = p[0] === '运行时长' ? ' id="ovUptime"' : '';
+      return '<dt>' + esc(p[0]) + '</dt><dd' + id + '>' + esc(p[1]) + '</dd>';
+    }).join('');
+    $('ovSys').innerHTML = kv;
+
+    ovClockInit(sys);
+
+    /* 温度 */
+    var g = temp.groups || {}, gk = Object.keys(g);
+    $('ovTempN').textContent = (temp.sensor_count || 0) + ' 个传感器 · 最高 '
+      + (temp.max == null ? '-' : temp.max + '°C');
+    $('ovTempGroups').innerHTML = gk.length ? gk.map(function(k){
+      var v = g[k];
+      var cls = v.max >= 60 ? 'c-red' : (v.max >= 45 ? 'c-orange' : 'c-green');
+      return '<div class="stat" style="padding:10px"><div class="lbl">' + esc(k) + '</div>'
+        + '<div class="val ' + cls + '" style="font-size:1.08rem">' + v.max + '°C</div>'
+        + '<div class="desc">均 ' + v.avg + '°C · ' + v.count + ' 点</div></div>';
+    }).join('') : '<div class="empty" style="grid-column:1/-1">无温度传感器数据</div>';
+    $('ovTempZones').innerHTML = (temp.zones || []).map(function(z){
+      var cls = z.celsius >= 60 ? 'c-red' : (z.celsius >= 45 ? 'c-orange' : 'c-dim');
+      return '<div class="temp-chip"><span class="mono">'
+        + esc(z.type) + '</span><b class="' + cls + '">' + z.celsius + '°C</b></div>';
+    }).join('');
+
+    /* 网络 */
+    var nk;
+    if(net.error){
+      nk = '<dt>状态</dt><dd class="c-dim">' + esc(net.error) + '</dd>';
+    } else {
+      nk = [
+        ['SSID', net.ssid], ['IP', net.ip], ['BSSID', net.bssid],
+        ['频段', net.frequency_mhz ? net.frequency_mhz + ' MHz' : '-'],
+        ['速率', net.link_speed_mbps ? net.link_speed_mbps + ' Mbps' : '-'],
+        ['信号', net.rssi != null ? net.rssi + ' dBm' : '-'],
+        ['MAC', net.mac_address]
+      ].map(function(p){
+        return '<dt>' + esc(p[0]) + '</dt><dd>' + esc(p[1] == null ? '-' : p[1]) + '</dd>';
+      }).join('');
+    }
+    $('ovNet').innerHTML = nk;
+
+    /* 服务概览 */
+    var ss = d.services_summary || {};
+    $('ovSvcN').textContent = '运行 ' + (ss.up||0) + ' / 共 ' + (ss.total||0);
+    var chips = (ss.up_names||[]).map(function(n){
+      return '<span class="tag up">' + esc(n) + '</span>';
+    }).concat((ss.down_names||[]).map(function(n){
+      return '<span class="tag down">' + esc(n) + '</span>';
+    })).join(' ');
+    $('ovSvcList').innerHTML = chips || '<span class="c-dim">未发现 runit 服务</span>';
+  }).catch(function(e){
+    $('hdot').className = 'dot bad';
+    $('hsub').textContent = String(e.message || e);
+  });
+}
+$('btnDeep').addEventListener('click', function(){
+  state.deep = !state.deep;
+  this.classList.toggle('on', state.deep);
+  this.textContent = state.deep ? '隐藏目录占用' : '含目录占用';
+  loadOverview();
+});
+
+/* ---------------- 实时时钟：运行时长每秒 +1 ----------------
+   设备端 `uptime` 只到分钟，服务端一次性给的字符串永远不会变。
+   所以服务端额外给秒级起点（system.uptime_s），这里折算成「开机时刻」，
+   之后纯本地推算 —— 每秒只改一个 textContent，不发请求、不碰传感器。 */
+function ovPad(n){ return (n < 10 ? '0' : '') + n; }
+function ovFmtClock(d){
+  return d.getFullYear() + '-' + ovPad(d.getMonth() + 1) + '-' + ovPad(d.getDate())
+    + ' ' + ovPad(d.getHours()) + ':' + ovPad(d.getMinutes()) + ':' + ovPad(d.getSeconds());
+}
+function ovFmtUptime(sec){
+  sec = Math.max(0, Math.floor(sec));
+  var d = Math.floor(sec / 86400), h = Math.floor(sec % 86400 / 3600);
+  var mi = Math.floor(sec % 3600 / 60), s = sec % 60;
+  return (d ? d + ' 天 ' : '') + h + ' 小时 ' + ovPad(mi) + ' 分 ' + ovPad(s) + ' 秒';
+}
+/* 退化路径：万一服务端没给 uptime_s，就把 "3 days, 4:05" / "12 min" 这类文本折成秒 */
+function ovParseUptime(t){
+  if(!t) return null;
+  var sec = 0, m = /^(\d+)\s+day/i.exec(String(t));
+  var days = m ? parseInt(m[1], 10) : 0;
+  sec += days * 86400;
+  m = /(\d+):(\d+)/.exec(String(t));
+  if(m) return sec + parseInt(m[1], 10) * 3600 + parseInt(m[2], 10) * 60;
+  m = /(\d+)\s*min/i.exec(String(t));
+  if(m) return sec + parseInt(m[1], 10) * 60;
+  return days ? sec : null;
+}
+function ovStopClock(){
+  if(state.ovTimer){ clearInterval(state.ovTimer); state.ovTimer = null; }
+}
+function ovClockInit(sys){
+  state.ovSys = sys || {};
+  var base = (typeof sys.uptime_s === 'number' && sys.uptime_s > 0)
+    ? sys.uptime_s : ovParseUptime(sys.uptime);
+  var boot = (base == null) ? null : (Date.now() / 1000 - base);
+  var head = (sys.model || 'device') + ' · Android ' + (sys.android || '?');
+  function tick(){
+    $('hsub').textContent = head + ' · ' + ovFmtClock(new Date());
+    if(boot != null){
+      var el = $('ovUptime');
+      if(el) el.textContent = ovFmtUptime(Date.now() / 1000 - boot);
+    }
+  }
+  ovStopClock();
+  tick();
+  /* 页面在后台就不再空转；回到前台由 visibilitychange 重新起（见下） */
+  if(!document.hidden) state.ovTimer = setInterval(tick, 1000);
+}
+document.addEventListener('visibilitychange', function(){
+  if(document.hidden){ ovStopClock(); return; }
+  if(state.ovSys) ovClockInit(state.ovSys);
+});

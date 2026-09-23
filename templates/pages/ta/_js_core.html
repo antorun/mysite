@@ -1,0 +1,77 @@
+/* ---------------- 基础工具 ---------------- */
+var $ = function(id){ return document.getElementById(id); };
+var esc = function(s){
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+};
+var qs = new URLSearchParams(location.search);
+var TOKEN = qs.get('token') || localStorage.getItem('ta_token') || '';
+
+function flash(msg, type){
+  var el = $('flash');
+  el.textContent = msg;
+  el.className = 'flash show ' + (type || '');
+  clearTimeout(flash._t);
+  flash._t = setTimeout(function(){ el.className = 'flash'; }, 2800);
+}
+
+function openMask(id){ $(id).classList.add('show'); }
+function closeMask(id){ $(id).classList.remove('show'); }
+document.querySelectorAll('[data-close]').forEach(function(b){
+  b.addEventListener('click', function(){ closeMask(b.getAttribute('data-close')); });
+});
+Array.prototype.forEach.call(document.querySelectorAll('.mask'), function(m){
+  m.addEventListener('click', function(e){ if(e.target === m) m.classList.remove('show'); });
+});
+
+function api(path, opts){
+  opts = opts || {};
+  var url = path + (path.indexOf('?') >= 0 ? '&' : '?') + 'token=' + encodeURIComponent(TOKEN);
+  var headers = Object.assign({'X-Admin-Token': TOKEN}, opts.headers || {});
+  return fetch(url, Object.assign({}, opts, {headers: headers, cache:'no-store'}))
+    .then(function(r){
+      if(r.status === 401){ needKey(); throw new Error('未授权：请输入管理令牌'); }
+      var ct = r.headers.get('content-type') || '';
+      if(ct.indexOf('application/json') >= 0) return r.json();
+      return r.text();
+    });
+}
+function apiJson(path, body){
+  return api(path, {method:'POST', headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify(body || {})});
+}
+function dl(path){
+  return path + (path.indexOf('?') >= 0 ? '&' : '?') + 'token=' + encodeURIComponent(TOKEN);
+}
+function needKey(){
+  $('keyInput').value = TOKEN;
+  openMask('keyMask');
+}
+function fmtTime(t){ return t ? new Date(t*1000).toLocaleString('zh-CN', {hour12:false}) : '-'; }
+function skel(cols){
+  return '<tr><td colspan="' + cols + '" class="empty" style="padding:10px 0">'
+    + '<div class="skel" style="margin-bottom:9px"></div>'
+    + '<div class="skel" style="width:78%;margin-bottom:9px"></div>'
+    + '<div class="skel" style="width:56%"></div></td></tr>';
+}
+
+/* ---------------- 令牌 ---------------- */
+$('btnKey').addEventListener('click', needKey);
+$('keySave').addEventListener('click', function(){
+  var v = $('keyInput').value.trim();
+  if(!v){ $('keyMsg').textContent = '令牌不能为空'; return; }
+  TOKEN = v;
+  apiJson('/index/health', {}).then(function(r){
+    if(r && r.status === 'ok'){
+      localStorage.setItem('ta_token', v);
+      $('keyMsg').textContent = '';
+      closeMask('keyMask');
+      flash('令牌有效，已保存到本机浏览器', 'ok');
+      if(r.token_file) $('keyFileHint').textContent = r.token_file;
+      refreshAll();
+    } else {
+      $('keyMsg').textContent = '验证失败：' + ((r && r.message) || '未知错误');
+    }
+  }).catch(function(e){ $('keyMsg').textContent = String(e.message || e); });
+});

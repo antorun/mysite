@@ -20,22 +20,6 @@ app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.url_map.strict_slashes = False
 
 
-@app.after_request
-def _no_store_html(resp):
-    """HTML 页面禁止缓存。
-
-    这些页面是随时会迭代的内部工具，而 Flask 默认不给任何缓存指令，
-    浏览器（尤其手机端的第三方浏览器 / 运营商代理）就会自作主张地留住旧副本，
-    改版后打开仍是老界面，很难分辨是"没部署"还是"读了缓存"。
-    """
-    ctype = resp.headers.get('Content-Type', '')
-    if ctype.startswith('text/html'):
-        resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
-        resp.headers['Pragma'] = 'no-cache'
-        resp.headers['Expires'] = '0'
-    return resp
-
-
 def _add(rule, func, endpoint=None, methods=None):
     if not rule.startswith('/'):
         rule = '/' + rule
@@ -151,18 +135,8 @@ _add('index/api/fs/pack', termux_admin.api_fs_pack)
 _add('index/api/fs/unpack', termux_admin.api_fs_unpack)
 _add('index/api/fs/upload', termux_admin.api_fs_upload)
 _add('index/api/fs/download', termux_admin.api_fs_download)
-# 内联预览（图片 / 视频 / 音频 / PDF）。支持 Range，视频才能拖动进度条。
-_add('index/api/fs/inline', termux_admin.api_fs_inline)
 _add('index/api/exec', termux_admin.api_exec)
 _add('index/api/presets', termux_admin.api_presets)
-
-# 传感器（Termux:API）。采样会真唤醒硬件，所以后端对帧数 / 路数 / 总时长都上了护栏，
-# 前端实时模式默认关闭、切页自动停，并提供 cleanup 释放传感器资源。
-_add('index/api/sensors', termux_admin.api_sensors)
-_add('index/api/sensors/read', termux_admin.api_sensors_read)
-_add('index/api/sensors/env', termux_admin.api_sensors_env)
-_add('index/api/sensors/preview', termux_admin.api_sensors_preview)
-_add('index/api/sensors/cleanup', termux_admin.api_sensors_cleanup)
 
 
 @app.errorhandler(500)

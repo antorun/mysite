@@ -1,0 +1,401 @@
+/* ---------------- 文件 ---------------- */
+var state = { fs:{ path:'', hidden:false, entries:[], parent:null },
+              term:{ presetsLoaded:false, cwd:'', home:'', user:'', host:'',
+                     history:[], hi:-1, busy:false, cancelled:false },
+              view:{ entry:null, group:[], idx:-1, zoom:false },
+              deep:false,
+              ovSys:null, ovTimer:null };   /* 概览实时时钟：最近一次 system 快照 + 秒表句柄 */
+
+function loadFiles(path){
+  var q = '/index/api/fs/list?hidden=' + (state.fs.hidden ? 1 : 0)
+        + (path ? '&path=' + encodeURIComponent(path) : '');
+  $('fRows').innerHTML = skel(6);
+  api(q).then(function(d){
+    if(!d || d.status !== 'ok'){
+      $('fRows').innerHTML = '<tr><td colspan="6" class="empty c-red">'
+        + esc((d && d.message) || '读取失败') + '</td></tr>';
+      return;
+    }
+    state.fs.path = d.path;
+    state.fs.parent = d.parent;
+    state.fs.entries = d.entries || [];
+    $('fPath').value = d.path;
+    $('fInfo').textContent = (d.counts ? (d.counts.dirs + ' 目录 / ' + d.counts.files + ' 文件') : '')
+      + ' · 可用 ' + (d.free_h || '?') + (d.writable ? '' : ' · 只读');
+    renderCrumbs(d.path);
+    renderFiles();
+  }).catch(function(e){
+    $('fRows').innerHTML = '<tr><td colspan="6" class="empty c-red">' + esc(String(e.message||e)) + '</td></tr>';
+  });
+}
+function renderCrumbs(p){
+  var parts = String(p).split('/').filter(Boolean);
+  var html = '<a data-goto="/">/</a>';
+  var acc = '';
+  parts.forEach(function(seg){
+    acc += '/' + seg;
+    html += '<span class="sep">›</span><a data-goto="' + esc(acc) + '">' + esc(seg) + '</a>';
+  });
+  $('fCrumbs').innerHTML = html;
+}
+function iconOf(e){
+  if(e.is_dir) return '📁';
+  if(e.is_link) return '🔗';
+  /* 优先用后端给的 kind —— 扩展名表只留一份在后端，前端别再抄一遍，
+     抄两份迟早会不一致（这里原先就漏了 .heic/.avif/.m2ts）。 */
+  var k = e.kind;
+  if(k === 'image') return '🖼';
+  if(k === 'video') return '🎬';
+  if(k === 'audio') return '🎵';
+  if(k === 'pdf')   return '📕';
+  if(k === 'archive') return '📦';
+  if(k === 'text')  return '📄';
+  var x = e.ext || '';
+  if(['.apk','.exe','.deb'].indexOf(x) >= 0) return '⚙';
+  if(e.editable) return '📄';
+  return '📃';
+}
+function renderFiles(){
+  var list = state.fs.entries || [];
+  if(!list.length){ $('fRows').innerHTML = '<tr><td colspan="6" class="empty">空目录</td></tr>'; return; }
+  $('fRows').innerHTML = list.map(function(e, idx){
+    var nameHtml = '<span style="margin-right:7px">' + iconOf(e) + '</span>'
+      + '<span class="mono" style="word-break:break-all">' + esc(e.name) + '</span>'
+      + (e.is_link ? ' <span class="tag off">→ ' + esc(e.link_target) + '</span>' : '');
+    /* 点名字：目录→进入，可预览的→预览，可编辑的→编辑器。
+       预览优先于编辑：图片/视频点开就该看到内容，而不是先弹一个文本框。 */
+    var link = e.is_dir
+      ? '<a data-goto="' + esc(e.path) + '">' + nameHtml + '</a>'
+      : (e.preview ? '<a data-view="' + idx + '" title="点击预览">' + nameHtml + '</a>'
+        : (e.editable ? '<a data-edit="' + idx + '" title="点击编辑">' + nameHtml + '</a>' : nameHtml));
+    return '<tr>'
+      + '<td class="c-chk"><input type="checkbox" class="fchk" data-i="' + idx + '"></td>'
+      + '<td class="c-main m-full">' + link + '</td>'
+      + '<td class="num" data-label="大小">' + (e.is_dir ? '-' : esc(e.size_h)) + '</td>'
+      + '<td class="nowrap" data-label="修改时间">' + esc(e.mtime_h) + '</td>'
+      + '<td class="num mono" data-label="权限">' + esc(e.mode) + '</td>'
+      + '<td class="act m-full">'
+      + (e.preview ? '<button class="btn pri" data-view="' + idx + '">预览</button>' : '')
+      + (e.is_dir ? '' : '<a class="btn" href="' + dl('/index/api/fs/download?path=' + encodeURIComponent(e.path)) + '">下载</a>')
+      + (e.is_dir ? '<button class="btn" data-pack="' + idx + '">打包</button>' : '')
+      + (/\.(tar\.gz|tgz|tar|zip|gz)$/i.test(e.name) ? '<button class="btn" data-unpack="' + idx + '">解压</button>' : '')
+      + '<button class="btn" data-ren="' + idx + '">改名</button>'
+      + '<button class="btn" data-chm="' + idx + '">权限</button>'
+      + '<button class="btn danger" data-del="' + idx + '">删除</button>'
+      + '</td></tr>';
+  }).join('');
+}
+
+$('fCrumbs').addEventListener('click', function(e){
+  var a = e.target.closest('a[data-goto]');
+  if(a) loadFiles(a.getAttribute('data-goto'));
+});
+$('fRows').addEventListener('click', function(e){
+  var g = e.target.closest('a[data-goto]');
+  if(g){ loadFiles(g.getAttribute('data-goto')); return; }
+  var vw = e.target.closest('[data-view]');
+  if(vw){ openView(state.fs.entries[Number(vw.getAttribute('data-view'))]); return; }
+  var ed = e.target.closest('a[data-edit]');
+  if(ed){ openEditor(state.fs.entries[Number(ed.getAttribute('data-edit'))]); return; }
+  var del = e.target.closest('button[data-del]');
+  if(del){
+    var en = state.fs.entries[Number(del.getAttribute('data-del'))];
+    if(!confirm('确认删除？\n' + en.path + (en.is_dir ? '\n（目录及其全部内容，不可恢复）' : ''))) return;
+    apiJson('/index/api/fs/delete', {paths: [en.path]}).then(function(r){
+      var f = (r.results || [])[0] || {};
+      flash(f.ok ? '已删除 ' + en.name : ('删除失败：' + (f.error || '')), f.ok ? 'ok' : 'err');
+      loadFiles(state.fs.path);
+    });
+    return;
+  }
+  var pack = e.target.closest('button[data-pack]');
+  if(pack){
+    var pe = state.fs.entries[Number(pack.getAttribute('data-pack'))];
+    ask('打包为 tar.gz', '包名（留空则用 ' + pe.name + '.tar.gz）', '', function(v){
+      apiJson('/index/api/fs/pack', {path: pe.path, name: v || ''}).then(function(r){
+        flash(r.status === 'ok' ? ('已生成 ' + r.archive + '（' + r.size_h + '）') : (r.message || '失败'),
+              r.status === 'ok' ? 'ok' : 'err');
+        loadFiles(state.fs.path);
+      });
+    });
+    return;
+  }
+  var un = e.target.closest('button[data-unpack]');
+  if(un){
+    var ue = state.fs.entries[Number(un.getAttribute('data-unpack'))];
+    if(!confirm('解压到同目录下的独立文件夹？\n' + ue.path)) return;
+    apiJson('/index/api/fs/unpack', {path: ue.path}).then(function(r){
+      flash(r.status === 'ok' ? ('已解压到 ' + r.dest) : (r.message || '失败'),
+            r.status === 'ok' ? 'ok' : 'err');
+      loadFiles(state.fs.path);
+    });
+    return;
+  }
+  var rn = e.target.closest('button[data-ren]');
+  if(rn){
+    var re2 = state.fs.entries[Number(rn.getAttribute('data-ren'))];
+    ask('重命名', '新名称', re2.name, function(v){
+      if(!v || v === re2.name) return;
+      apiJson('/index/api/fs/rename', {path: re2.path, name: v}).then(function(r){
+        flash(r.status === 'ok' ? '已重命名' : (r.message || '失败'), r.status === 'ok' ? 'ok' : 'err');
+        loadFiles(state.fs.path);
+      });
+    });
+    return;
+  }
+  var cm = e.target.closest('button[data-chm]');
+  if(cm){
+    var ce = state.fs.entries[Number(cm.getAttribute('data-chm'))];
+    ask('修改权限 (chmod)', '八进制，如 755 / 644 / 600', ce.mode, function(v){
+      apiJson('/index/api/fs/chmod', {path: ce.path, mode: v}).then(function(r){
+        flash(r.status === 'ok' ? ('权限已设为 ' + v) : (r.message || '失败'), r.status === 'ok' ? 'ok' : 'err');
+        loadFiles(state.fs.path);
+      });
+    });
+  }
+});
+$('fAll').addEventListener('change', function(){
+  document.querySelectorAll('.fchk').forEach(function(c){ c.checked = $('fAll').checked; });
+});
+$('fGo').addEventListener('click', function(){ loadFiles($('fPath').value.trim()); });
+$('fPath').addEventListener('keydown', function(e){ if(e.key === 'Enter') loadFiles(this.value.trim()); });
+$('fReload').addEventListener('click', function(){ loadFiles(state.fs.path); });
+$('fUp').addEventListener('click', function(){ if(state.fs.parent) loadFiles(state.fs.parent); });
+$('fHome').addEventListener('click', function(){ loadFiles(''); });
+$('fHidden').addEventListener('click', function(){
+  state.fs.hidden = !state.fs.hidden;
+  this.classList.toggle('on', state.fs.hidden);
+  this.textContent = state.fs.hidden ? '隐藏: 开' : '隐藏: 关';
+  loadFiles(state.fs.path);
+});
+$('fMkdir').addEventListener('click', function(){
+  ask('新建文件夹', '名称', '新建文件夹', function(v){
+    apiJson('/index/api/fs/mkdir', {path: state.fs.path, name: v}).then(function(r){
+      flash(r.status === 'ok' ? '已创建文件夹' : (r.message || '失败'), r.status === 'ok' ? 'ok' : 'err');
+      loadFiles(state.fs.path);
+    });
+  });
+});
+$('fMkfile').addEventListener('click', function(){
+  ask('新建文件', '名称（含扩展名）', 'new.txt', function(v){
+    apiJson('/index/api/fs/mkfile', {path: state.fs.path, name: v}).then(function(r){
+      flash(r.status === 'ok' ? '已创建文件' : (r.message || '失败'), r.status === 'ok' ? 'ok' : 'err');
+      loadFiles(state.fs.path);
+    });
+  });
+});
+$('fDelSel').addEventListener('click', function(){
+  var paths = [];
+  document.querySelectorAll('.fchk:checked').forEach(function(c){
+    var e = state.fs.entries[Number(c.getAttribute('data-i'))];
+    if(e) paths.push(e.path);
+  });
+  if(!paths.length){ flash('未选中任何条目', 'err'); return; }
+  if(!confirm('确认删除选中的 ' + paths.length + ' 项？\n\n' + paths.join('\n'))) return;
+  apiJson('/index/api/fs/delete', {paths: paths}).then(function(r){
+    flash('成功 ' + r.ok_count + ' 项，失败 ' + r.fail_count + ' 项', r.fail_count ? 'err' : 'ok');
+    loadFiles(state.fs.path);
+  });
+});
+$('fUploadBtn').addEventListener('click', function(){ $('fUpload').click(); });
+$('fUpload').addEventListener('change', function(){
+  var files = this.files;
+  if(!files || !files.length) return;
+  var fd = new FormData();
+  fd.append('path', state.fs.path);
+  for(var i = 0; i < files.length; i++) fd.append('files', files[i]);
+  flash('上传中…（' + files.length + ' 个文件）');
+  fetch(dl('/index/api/fs/upload'), {method:'POST', body: fd, headers:{'X-Admin-Token': TOKEN}})
+    .then(function(r){ return r.json(); })
+    .then(function(r){
+      if(r && r.status === 'ok'){
+        flash('上传完成：成功 ' + r.ok_count + ' 个，失败 ' + r.fail_count + ' 个', r.fail_count ? 'err' : 'ok');
+        loadFiles(state.fs.path);
+      } else flash((r && r.message) || '上传失败', 'err');
+    }).catch(function(e){ flash('上传失败：' + e.message, 'err'); });
+  this.value = '';
+});
+
+/* 编辑器 */
+var editing = null;
+function openEditor(entry){
+  api('/index/api/fs/read?path=' + encodeURIComponent(entry.path)).then(function(d){
+    if(!d || d.status !== 'ok'){ flash((d && d.message) || '读取失败', 'err'); return; }
+    editing = entry;
+    $('editTitle').textContent = entry.path;
+    $('editInfo').textContent = d.size_h + ' · 权限 ' + d.mode;
+    $('editBody').value = d.content;
+    openMask('editMask');
+  });
+}
+$('editSave').addEventListener('click', function(){
+  if(!editing) return;
+  var b = this; b.disabled = true; b.textContent = '保存中…';
+  apiJson('/index/api/fs/write', {path: editing.path, content: $('editBody').value}).then(function(r){
+    b.disabled = false; b.textContent = '保存';
+    if(r.status === 'ok'){
+      flash('已保存（' + r.bytes + ' 字节）' + (r.backup ? '，原文件备份为 *.ta-bak' : ''), 'ok');
+      closeMask('editMask');
+      loadFiles(state.fs.path);
+    } else flash(r.message || '保存失败', 'err');
+  }).catch(function(e){ b.disabled = false; b.textContent = '保存'; flash(String(e.message||e), 'err'); });
+});
+$('editDownload').addEventListener('click', function(){
+  if(editing) location.href = dl('/index/api/fs/download?path=' + encodeURIComponent(editing.path));
+});
+
+/* ---------------- 预览：图片 / 视频 / 音频 / PDF ----------------
+   走 /index/api/fs/inline（inline + Range），不是 download：download 带
+   Content-Disposition: attachment，浏览器只会存盘，<img>/<video> 拿不到内容。 */
+function inlineUrl(p){ return dl('/index/api/fs/inline?path=' + encodeURIComponent(p)); }
+
+function viewGroupOf(entry){
+  /* 同目录同类型的文件凑成一个播放列表：看一串截图/连拍时不用退出再点下一个 */
+  return (state.fs.entries || []).filter(function(e){
+    return !e.is_dir && e.preview && e.kind === entry.kind;
+  });
+}
+
+function pauseViewMedia(){
+  Array.prototype.forEach.call($('viewBody').querySelectorAll('video,audio'), function(m){
+    try{ m.pause(); }catch(e){}
+  });
+}
+
+function closeViewer(){
+  var b = $('viewBody');
+  Array.prototype.forEach.call(b.querySelectorAll('video,audio'), function(m){
+    try{ m.pause(); }catch(e){}
+    m.removeAttribute('src');
+    if(m.load) m.load();          /* 真正断开连接，光 pause 不释放 */
+  });
+  b.innerHTML = '';               /* 清掉 iframe 才会停掉里面的 PDF 加载 */
+  b.classList.remove('zoomed');
+  state.view = {entry:null, group:[], idx:-1, zoom:false};
+  closeMask('viewMask');
+}
+
+function renderView(entry){
+  if(!entry) return;
+  state.view.entry = entry;
+  state.view.zoom = false;
+  $('viewTitle').textContent = entry.name;
+  $('viewMeta').textContent = entry.size_h + ' · ' + entry.mtime_h;
+
+  var b = $('viewBody');
+  b.classList.remove('zoomed');
+  b.innerHTML = '';
+  var u = esc(inlineUrl(entry.path));
+
+  if(entry.kind === 'image'){
+    b.innerHTML = '<img src="' + u + '" alt="' + esc(entry.name) + '">';
+  } else if(entry.kind === 'video'){
+    b.innerHTML = '<video controls playsinline autoplay preload="metadata" src="' + u + '"></video>';
+  } else if(entry.kind === 'audio'){
+    b.innerHTML = '<audio controls autoplay src="' + u + '"></audio>';
+  } else if(entry.kind === 'pdf'){
+    b.innerHTML = '<iframe src="' + u + '" title="' + esc(entry.name) + '"></iframe>';
+  }
+
+  /* 把按钮状态和提示语先算出来 —— 播放器要拿它做「加载中 → 正常」的还原 */
+  var n = state.view.group.length, one = (n < 2);
+  $('viewPrev').style.display = one ? 'none' : '';
+  $('viewNext').style.display = one ? 'none' : '';
+  $('viewZoom').style.display = (entry.kind === 'image') ? '' : 'none';
+  $('viewZoom').textContent = '1:1';
+  $('viewOpen').style.display = entry.inline_ok ? '' : 'none';
+  $('viewEdit').style.display = entry.editable ? '' : 'none';
+
+  var hint = one ? '' : ('第 ' + (state.view.idx + 1) + '/' + n + ' 个 · ');
+  if(entry.ext === '.m3u8'){
+    hint += 'HLS 播放列表只有 Safari / iOS 原生支持，其他浏览器请下载后用播放器打开';
+  } else if(entry.kind === 'image' && !one){
+    hint += '← → 切换 · Esc 关闭';
+  } else if(!one){
+    hint += '← → 切换';
+  }
+
+  /* 能不能播是浏览器的解码器说了算（mkv 里的 H.265、老 diviX 之类它就是不认）。
+     播不了要明确说出来，不能留一块黑屏让人以为「文件坏了」。
+     但解码器判定失败要好几秒，这几秒也是黑屏 —— 所以先挂一句「正在加载…」，
+     拿到元数据就换回正常提示，判定失败就被上面的错误分支接管。 */
+  var media = b.querySelector('video,audio');
+  if(media){
+    $('viewHint').textContent = '正在加载…';
+    media.addEventListener('loadedmetadata', function(){
+      if(state.view.entry === entry) $('viewHint').textContent = hint;
+    });
+    media.addEventListener('error', function(){
+      if(state.view.entry !== entry) return;
+      $('viewHint').textContent = '';
+      b.innerHTML = '<div class="vmsg"><span class="big">🎞</span>'
+        + '浏览器解不开这个格式或编码（' + esc(entry.ext || '?') + '）。<br>'
+        + '点下面的「新标签打开」交给系统播放器，或先下载到本地用播放器看。</div>';
+    });
+  } else {
+    $('viewHint').textContent = hint;
+  }
+
+  if(b.querySelector('iframe')){
+    b.querySelector('iframe').addEventListener('error', function(){
+      $('viewHint').textContent = '若这里一片空白，点「新标签打开」';
+    });
+  }
+
+  openMask('viewMask');
+}
+
+function openView(entry, idx){
+  if(!entry || !entry.preview) return;
+  var g = viewGroupOf(entry);
+  state.view.group = g;
+  if(typeof idx === 'number' && idx >= 0 && idx < g.length){
+    state.view.idx = idx;
+  } else {
+    state.view.idx = 0;
+    for(var i = 0; i < g.length; i++){ if(g[i].path === entry.path){ state.view.idx = i; break; } }
+  }
+  renderView(g[state.view.idx] || entry);
+}
+
+function viewStep(d){
+  var g = state.view.group;
+  if(g.length < 2) return;
+  state.view.idx = (state.view.idx + d + g.length) % g.length;
+  renderView(g[state.view.idx]);
+}
+
+$('viewPrev').addEventListener('click', function(){ viewStep(-1); });
+$('viewNext').addEventListener('click', function(){ viewStep(1); });
+$('viewZoom').addEventListener('click', function(){
+  state.view.zoom = !state.view.zoom;
+  $('viewBody').classList.toggle('zoomed', state.view.zoom);
+  this.textContent = state.view.zoom ? '适应窗口' : '1:1';
+});
+$('viewDl').addEventListener('click', function(){
+  if(state.view.entry) location.href = dl('/index/api/fs/download?path=' + encodeURIComponent(state.view.entry.path));
+});
+$('viewOpen').addEventListener('click', function(){
+  if(state.view.entry) window.open(inlineUrl(state.view.entry.path), '_blank');
+});
+$('viewEdit').addEventListener('click', function(){
+  var e = state.view.entry;
+  if(!e) return;
+  closeViewer();
+  openEditor(e);
+});
+/* 点遮罩 / × 都必须走 closeViewer：通用遮罩关闭只去掉 .show，
+   视频被 display:none 之后声音照样在放。 */
+$('viewMask').addEventListener('click', function(e){
+  if(e.target === this || e.target.closest('[data-close]')) closeViewer();
+});
+document.addEventListener('keydown', function(e){
+  if(!$('viewMask').classList.contains('show')) return;
+  if(e.key === 'Escape' || e.keyCode === 27){ closeViewer(); }
+  else if(e.key === 'ArrowLeft'){ viewStep(-1); }
+  else if(e.key === 'ArrowRight'){ viewStep(1); }
+});
+/* 切到后台就静音暂停：手机上锁屏后还在放视频是最招人烦的 */
+document.addEventListener('visibilitychange', function(){
+  if(document.hidden) pauseViewMedia();
+});

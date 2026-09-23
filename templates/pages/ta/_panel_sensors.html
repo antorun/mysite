@@ -1,0 +1,106 @@
+  <!-- ================= 传感器：环境体检 + 采样分析 ================= -->
+  <section class="panel" id="tab-sensors">
+
+    <div class="card">
+      <div class="card-h">
+        <span class="t">环境体检</span>
+        <span class="spacer"></span>
+        <span class="c-dim se-ts" id="seEnvTs"></span>
+        <button class="btn pri" id="seEnvLoad">开始检测</button>
+      </div>
+      <div class="se-verdict" id="seVerdictBox">
+        <span class="se-vi" id="seVerdictIcon">◍</span>
+        <span id="seVerdictText">进入本页会自动开始检测，把运动、环境、电源几路传感器一起读一次，换算成人能看懂的结论。</span>
+      </div>
+      <div class="se-chips" id="seChips"></div>
+      <div class="se-findings" id="seFindings"></div>
+      <div class="se-foot" id="seEnvFoot"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-h">
+        <span class="t">采样与曲线</span>
+        <span class="se-eco" id="seEcoState" style="margin-left:10px"><i></i><b>—</b></span>
+        <span class="spacer"></span>
+        <select id="sePick" class="w-lg" title="选择要持续采集的传感器"></select>
+        <button class="btn" id="seOnce">采一批</button>
+        <button class="btn" id="seLive">持续 关</button>
+        <button class="btn" id="seCsv">导出 CSV</button>
+      </div>
+      <div class="toolbar tb-3">
+        <label class="se-num"><span>帧数</span>
+          <input type="number" id="seN" value="24" min="1" max="120" inputmode="numeric"></label>
+        <label class="se-num"><span>间隔 ms</span>
+          <input type="number" id="seD" value="100" min="50" max="2000" inputmode="numeric"></label>
+        <span class="c-dim se-meta" id="seMeta">—</span>
+      </div>
+      <div class="se-hint">
+        <b>持续</b>打开后按节能节奏自动采样：每次只取 <b>1 帧</b>，数值静止时把间隔逐步拉长到
+        <b>15 秒</b>，一旦有变化立刻回到 <b>3 秒</b>；切到后台或离开本页会自动暂停。
+        需要连续波形时用「帧数 / 间隔」配「采一批」。
+      </div>
+      <div class="se-cv-wrap">
+        <canvas id="seCanvas"></canvas>
+        <div class="se-cv-empty" id="seCvEmpty">还没有数据，点「采一批」</div>
+      </div>
+      <div class="se-legend" id="seLegend"></div>
+    </div>
+
+    <div class="grid g2">
+      <div class="card">
+        <div class="card-h"><span class="t">换算后的指标</span><span class="spacer"></span>
+          <span class="c-dim se-ts" id="seMetricWho"></span></div>
+        <div class="tw"><table><thead><tr>
+          <th>指标</th><th>数值</th><th>说明</th></tr></thead>
+          <tbody id="seMetricRows"><tr><td colspan="3" class="empty">—</td></tr></tbody></table></div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="t">逐项结论</span></div>
+        <div class="se-notes" id="seNotes"><div class="empty">—</div></div>
+      </div>
+    </div>
+
+    <div class="card" id="seRelCard" style="display:none">
+      <div class="card-h"><span class="t">同一批采到的其它物理量</span></div>
+      <div class="se-rel" id="seRel"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-h">
+        <span class="t">传感器清单</span>
+        <span class="spacer"></span>
+        <input id="seSearch" class="w-lg" type="search" placeholder="搜索名称 / 物理量…">
+        <select id="seGroup" class="w-md"></select>
+        <button class="btn" id="seReload">重新扫描</button>
+      </div>
+      <div class="se-hint" id="seHint">—</div>
+      <div class="tw"><table><thead><tr>
+        <th>传感器</th><th>物理量</th><th>分组</th><th class="num">通道</th>
+        <th>最新值</th><th class="act">操作</th></tr></thead>
+        <tbody id="seRows"><tr><td colspan="6" class="empty">加载中…</td></tr></tbody></table></div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><span class="t">怎么读这些数字</span></div>
+      <ul class="se-doc">
+        <li><b>加速度 / 重力</b>：合矢量恒为 9.807 m/s² 说明只受重力；波动小于 0.03 就是真静止。
+          由重力方向还能算出机身姿态与前后 / 左右倾角。</li>
+        <li><b>陀螺仪</b>：角速度接近 0 才是真静止；换算成 °/s 更直观。</li>
+        <li><b>磁力计</b>：强度在地表常值 25–65 µT 之间才正常；配合重力向量可解出磁方位角。
+          「未校准」那条读数带固定偏置，只能看变化、不能看绝对值。</li>
+        <li><b>姿态矢量</b>：3 通道是欧拉角（方位 / 俯仰 / 横滚），4–5 通道是先解四元数再转欧拉角。
+          名字里带 geomag 的融合了磁力计、方位是绝对的；Game Rotation Vector 是纯陀螺积分，
+          方位只是相对值。</li>
+        <li><b>光照 / RGB / 色温 / 闪烁</b>：厂商不公开通道含义，只能按「通道 N」看序号与数值，
+          本页用通道 0 的量级近似推断亮度等级，仅供参考。</li>
+        <li><b>距离</b>：0 或 1 视为前方有物体贴近（贴脸 / 口袋 / 屏幕朝下），其余视为无遮挡。</li>
+        <li><b>事件型传感器</b>（运动检测、自由落体、口袋、拿起…）只在事件发生时上报，
+          平时读到空是正常的，不代表坏了。</li>
+        <li><b>打开即采集</b>：进入本页会自动读一次环境体检、并自动开启「持续」采集，
+          不用手动点。想重新体检点右上角「重新检测」。</li>
+        <li><b>省电提醒</b>：采样会真的唤醒传感器硬件。持续模式每次只取 1 帧，数值静止时
+          自动退避到最长 15 秒一次；切到后台或离开本页会立即暂停。单批上限 120 帧、
+          间隔不低于 50ms、一次最多 12 路。</li>
+      </ul>
+    </div>
+  </section>
