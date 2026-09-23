@@ -498,7 +498,6 @@ def ai_chat_api():
 
 device = _render_page('pages/device.html')
 controller = _render_page('tools/c.html')
-glm_chat = _render_page('pages/glm_chat.html')
 nvidia_chat = _render_page('pages/nvidia_chat.html')
 mimo_chat = _render_page('pages/mimo_chat.html')
 
