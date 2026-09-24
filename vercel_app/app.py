@@ -1,6 +1,6 @@
 import os
 from flask import Flask, render_template
-from . import views, script, termux_admin
+from . import views, script
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -127,41 +127,14 @@ _add('fec01a7cfaea0fc836af1470864e1efe.txt', views.verfy, 'verfy')
 _add('.well-known/pki-validation/8897263DE544448583DF473226CE4FCB.txt', views.verfy2, 'verfy2')
 
 
-# ============ Termux 管理控制台（入口 /index） ============
-# 页面本身不校验令牌；/index/api/* 全部需要令牌或已登录会话。
-_add('index', termux_admin.index_page, 'termux_admin')
-_add('index/health', termux_admin.api_health)
-_add('index/api/overview', termux_admin.api_overview)
-_add('index/api/processes', termux_admin.api_processes)
-_add('index/api/process/kill', termux_admin.api_process_kill)
-_add('index/api/services', termux_admin.api_services)
-_add('index/api/services/action', termux_admin.api_service_action)
-_add('index/api/services/log', termux_admin.api_service_log)
-_add('index/api/fs/list', termux_admin.api_fs_list)
-_add('index/api/fs/read', termux_admin.api_fs_read)
-_add('index/api/fs/write', termux_admin.api_fs_write)
-_add('index/api/fs/mkdir', termux_admin.api_fs_mkdir)
-_add('index/api/fs/mkfile', termux_admin.api_fs_mkfile)
-_add('index/api/fs/rename', termux_admin.api_fs_rename)
-_add('index/api/fs/copy', termux_admin.api_fs_copy)
-_add('index/api/fs/delete', termux_admin.api_fs_delete)
-_add('index/api/fs/chmod', termux_admin.api_fs_chmod)
-_add('index/api/fs/pack', termux_admin.api_fs_pack)
-_add('index/api/fs/unpack', termux_admin.api_fs_unpack)
-_add('index/api/fs/upload', termux_admin.api_fs_upload)
-_add('index/api/fs/download', termux_admin.api_fs_download)
-# 内联预览（图片 / 视频 / 音频 / PDF）。支持 Range，视频才能拖动进度条。
-_add('index/api/fs/inline', termux_admin.api_fs_inline)
-_add('index/api/exec', termux_admin.api_exec)
-_add('index/api/presets', termux_admin.api_presets)
-
-# 传感器（Termux:API）。采样会真唤醒硬件，所以后端对帧数 / 路数 / 总时长都上了护栏，
-# 前端实时模式默认关闭、切页自动停，并提供 cleanup 释放传感器资源。
-_add('index/api/sensors', termux_admin.api_sensors)
-_add('index/api/sensors/read', termux_admin.api_sensors_read)
-_add('index/api/sensors/env', termux_admin.api_sensors_env)
-_add('index/api/sensors/preview', termux_admin.api_sensors_preview)
-_add('index/api/sensors/cleanup', termux_admin.api_sensors_cleanup)
+# ============ Termux 管理控制台 → 已拆为独立项目 ============
+# 原先这里注册了 /index + /index/api/* 共 31 条路由，实现在 ./termux_admin.py，
+# 页面在 templates/pages/termux_admin.html + 21 个 pages/ta/ 分片。
+#
+# 已整体拆出为独立项目（自己的进程 / 端口 8010 / runit 服务 / 令牌）：
+#     <工作区>/ta-console/
+# 那个项目才是控制台的唯一实现，本项目不再保留任何副本 —— 所以下面这些路由
+# 在这里**故意**不存在，访问会得到 404。别再往回加。
 
 
 @app.errorhandler(500)
